@@ -15,7 +15,10 @@ export const translations = {
     allVault: 'Всё хранилище',
     newWorkspace: '+ Новое пространство',
     changeIcon: 'Изменить иконку',
-    chooseIconTitle: 'Выберите иконку или эмодзи',
+    chooseIconTitle: 'Выберите иконку',
+    tabSvgIcons: 'Векторные значки',
+    tabEmojis: 'Эмодзи',
+    resetIconDefault: 'Сбросить иконку по умолчанию',
     trash: 'Корзина',
     trashTitle: 'Корзина удалённых заметок',
     trashEmpty: 'Корзина пуста',
@@ -31,13 +34,13 @@ export const translations = {
     themePresetDefault: 'Охра (По умолчанию)',
     themePresetOled: 'Глубокая тёмная (OLED)',
     themePresetLight: 'Светлая',
-    themePresetCustom: 'Пользовательская',
+    themePresetCustom: 'Своя палитра',
     bgColor: 'Цвет фона',
     accentColor: 'Акцентный цвет',
     language: 'Язык интерфейса',
-    trashRetentionPeriod: 'Период хранения в корзине',
-    daysCount: 'дней (0 = бессрочно)',
-    daysUnit: 'дн.',
+    trashRetentionPeriod: 'Период хранения в корзине (в днях)',
+    daysUnit: 'дней (0 = бессрочно)',
+    daysPrompt: 'дней',
     infinity: 'Бессрочно',
     saveStatusReady: 'Готово',
     saveStatusSaving: 'Сохранение...',
@@ -49,10 +52,28 @@ export const translations = {
     emptyVaultText: 'Откройте папку на вашем ПК, чтобы просматривать структуру и редактировать заметки',
     welcomeTitle: 'Добро пожаловать в Basalt',
     confirmPermanentDelete: 'Удалить эту заметку навсегда без возможности восстановления?',
+    confirmDeleteFolder: 'Удалить папку "{name}" и всё её содержимое?',
     promptNoteName: 'Введите название заметки',
     promptFolderName: 'Введите название папки',
     promptWorkspaceName: 'Введите название нового пространства (папки)',
-    moveSuccess: 'Файл успешно перемещён',
+    createNoteInFolder: 'Создать файл в этой папке',
+    createSubfolder: 'Создать вложенную папку',
+    deleteFolder: 'Удалить папку',
+    collapseSidebar: 'Скрыть боковую панель',
+    expandSidebar: 'Развернуть боковую панель',
+    infoTitle: 'Справка по Markdown',
+    infoTooltip: 'Справка Markdown',
+    nothingFound: 'Ничего не найдено',
+    browserNotSupported: 'Браузер не поддерживается',
+    browserNotSupportedDesc: 'Требуется браузер с поддержкой File System Access API (Chrome, Edge)',
+    welcomeBody: 'Папка пуста. Начните писать здесь свои мысли или нажмите «+», чтобы создать новую заметку.',
+    errorOpenVault: 'Не удалось открыть папку',
+    errorReadFile: 'Не удалось прочитать файл',
+    errorCreateFile: 'Не удалось создать файл',
+    errorCreateFolder: 'Не удалось создать папку',
+    errorDelete: 'Не удалось удалить',
+    errorMove: 'Не удалось переместить',
+    welcomeFileName: 'Добро пожаловать.md',
   },
   en: {
     vault: 'Vault',
@@ -68,7 +89,10 @@ export const translations = {
     allVault: 'All Vault',
     newWorkspace: '+ New Workspace',
     changeIcon: 'Change icon',
-    chooseIconTitle: 'Select an icon or emoji',
+    chooseIconTitle: 'Select an icon',
+    tabSvgIcons: 'Vector Icons',
+    tabEmojis: 'Emoji',
+    resetIconDefault: 'Reset icon to default',
     trash: 'Trash',
     trashTitle: 'Trash Bin',
     trashEmpty: 'Trash is empty',
@@ -84,28 +108,46 @@ export const translations = {
     themePresetDefault: 'Ochre (Default)',
     themePresetOled: 'Pure Dark (OLED)',
     themePresetLight: 'Light',
-    themePresetCustom: 'Custom',
+    themePresetCustom: 'Custom Theme',
     bgColor: 'Background color',
     accentColor: 'Accent color',
     language: 'Interface Language',
-    trashRetentionPeriod: 'Trash Retention Period',
-    daysCount: 'days (0 = forever)',
-    daysUnit: 'days',
+    trashRetentionPeriod: 'Trash Retention Period (in days)',
+    daysUnit: 'days (0 = forever)',
+    daysPrompt: 'days',
     infinity: 'Forever',
     saveStatusReady: 'Ready',
     saveStatusSaving: 'Saving...',
     saveStatusSaved: 'Saved ✓',
     saveStatusError: 'Error',
     wordsCount: 'words',
-    charsCount: 'chars',
+    charsCount: 'characters',
     emptyFolderText: 'No files in this folder yet',
     emptyVaultText: 'Open a local folder on your PC to view the file tree and edit notes',
     welcomeTitle: 'Welcome to Basalt',
     confirmPermanentDelete: 'Permanently delete this note without recovery?',
+    confirmDeleteFolder: 'Delete folder "{name}" and all its contents?',
     promptNoteName: 'Enter note title',
     promptFolderName: 'Enter folder name',
     promptWorkspaceName: 'Enter new workspace (folder) name',
-    moveSuccess: 'File moved successfully',
+    createNoteInFolder: 'Create note in this folder',
+    createSubfolder: 'Create subfolder',
+    deleteFolder: 'Delete folder',
+    collapseSidebar: 'Collapse sidebar',
+    expandSidebar: 'Expand sidebar',
+    infoTitle: 'Markdown Reference Guide',
+    infoTooltip: 'Markdown Guide',
+    nothingFound: 'Nothing found',
+    browserNotSupported: 'Browser is not supported',
+    browserNotSupportedDesc: 'Requires a browser supporting File System Access API (Chrome, Edge)',
+    welcomeBody: 'The folder is empty. Start writing your notes here or click "+" to create a new note.',
+    errorOpenVault: 'Failed to open folder',
+    errorReadFile: 'Failed to read file',
+    errorCreateFile: 'Failed to create file',
+    errorCreateFolder: 'Failed to create folder',
+    errorDelete: 'Failed to delete',
+    errorMove: 'Failed to move',
+    welcomeFileName: 'Welcome.md',
   },
 };
 
@@ -120,6 +162,49 @@ export function setLang(lang: Language) {
   localStorage.setItem('basalt-lang', lang);
 }
 
-export function t(key: keyof typeof translations['ru']): string {
-  return translations[currentLang][key] || translations['ru'][key] || key;
+export function t(key: keyof typeof translations['ru'], params?: Record<string, string | number>): string {
+  let text = translations[currentLang]?.[key] || translations['ru']?.[key] || (key as string);
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    }
+  }
+  return text;
+}
+
+export function formatNotesCount(count: number): string {
+  if (currentLang === 'en') {
+    return `${count} ${count === 1 ? 'note' : 'notes'}`;
+  }
+  // Русское склонение
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${count} заметок`;
+  if (mod10 === 1) return `${count} заметка`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} заметки`;
+  return `${count} заметок`;
+}
+
+export function formatWordsCount(count: number): string {
+  if (currentLang === 'en') {
+    return `${count} ${count === 1 ? 'word' : 'words'}`;
+  }
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${count} слов`;
+  if (mod10 === 1) return `${count} слово`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} слова`;
+  return `${count} слов`;
+}
+
+export function formatCharsCount(count: number): string {
+  if (currentLang === 'en') {
+    return `${count} ${count === 1 ? 'char' : 'chars'}`;
+  }
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${count} знаков`;
+  if (mod10 === 1) return `${count} знак`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} знака`;
+  return `${count} знаков`;
 }

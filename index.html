@@ -104,7 +104,7 @@
           </div>
         </div>
 
-        <!-- Подвал боковой панели с кнопками корзины и настроек -->
+        <!-- Подвал боковой панели с кнопками корзины, настроек и справки -->
         <div class="sidebar-footer">
           <div class="footer-left">
             <button id="btn-open-trash" class="footer-btn" title="Корзина удалённых заметок">
@@ -118,6 +118,13 @@
               <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+            <button id="btn-open-info" class="footer-btn" title="Справка по Markdown">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
             </button>
           </div>
@@ -220,15 +227,12 @@
             </div>
           </div>
 
-          <!-- Секция: Срок хранения в корзине -->
+          <!-- Секция: Срок хранения в корзине (Ручной ввод числа) -->
           <div class="settings-section">
-            <label class="settings-section-title" id="txt-trash-retention-label">Период хранения в корзине</label>
-            <div class="retention-control">
-              <input type="range" id="trash-retention-slider" min="0" max="90" step="1" value="7" />
-              <div class="retention-val-box">
-                <span id="trash-retention-value">7</span>
-                <span id="trash-retention-unit">дней (0 = бессрочно)</span>
-              </div>
+            <label class="settings-section-title" id="txt-trash-retention-label">Период хранения в корзине (в днях)</label>
+            <div class="retention-input-row">
+              <input type="number" id="trash-retention-input" min="0" max="9999" value="7" class="retention-number-input" />
+              <span class="retention-unit-hint" id="trash-retention-unit-hint">дней (0 = бессрочно)</span>
             </div>
           </div>
         </div>
@@ -245,14 +249,24 @@
           <button class="modal-close-btn" data-close="modal-icon-picker">✕</button>
         </div>
         <div class="modal-body">
-          <div class="icon-category-title">Векторные значки (Flaticon Style)</div>
-          <div class="icon-grid" id="svg-icons-grid"></div>
+          <!-- Вкладки категорий иконок -->
+          <div class="icon-tabs-nav">
+            <button class="icon-tab-btn active" id="tab-btn-svg" data-tab="svg">Векторные значки</button>
+            <button class="icon-tab-btn" id="tab-btn-emoji" data-tab="emoji">Эмодзи</button>
+          </div>
 
-          <div class="icon-category-title" style="margin-top: 14px;">Эмодзи</div>
-          <div class="icon-grid emoji-grid" id="emoji-icons-grid"></div>
+          <!-- Прокручиваемый список векторных значков -->
+          <div class="icon-scroll-panel active" id="panel-svg-icons">
+            <div class="icon-grid" id="svg-icons-grid"></div>
+          </div>
 
-          <button id="btn-reset-icon" class="btn btn-secondary" style="margin-top: 16px;">
-            <span>Сбросить иконку по умолчанию</span>
+          <!-- Прокручиваемый список эмодзи -->
+          <div class="icon-scroll-panel" id="panel-emoji-icons" style="display: none;">
+            <div class="icon-grid emoji-grid" id="emoji-icons-grid"></div>
+          </div>
+
+          <button id="btn-reset-icon" class="btn btn-secondary" style="margin-top: 14px;">
+            <span id="txt-btn-reset-icon">Сбросить иконку по умолчанию</span>
           </button>
         </div>
       </div>
@@ -273,6 +287,19 @@
         <div class="modal-body">
           <div class="trash-items-list" id="trash-items-list"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         МОДАЛЬНОЕ ОКНО: СПРАВКА ПО MARKDOWN
+         ========================================================================== -->
+    <div id="modal-info" class="modal-backdrop" style="display: none;">
+      <div class="modal-window modal-lg">
+        <div class="modal-header">
+          <h3 id="txt-info-heading">Справка по Markdown</h3>
+          <button class="modal-close-btn" data-close="modal-info">✕</button>
+        </div>
+        <div class="modal-body info-guide-body" id="info-guide-content"></div>
       </div>
     </div>
 

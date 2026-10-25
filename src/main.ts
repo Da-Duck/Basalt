@@ -1,10 +1,17 @@
 import { WebFileAdapter } from './core/adapter/WebFileAdapter';
 import type { FileEntry } from './core/adapter/FileSystemAdapter';
 import { BasaltEditor, type EditorStats } from './core/editor/editor';
-import { t, type Language } from './core/i18n/i18n';
+import {
+  t,
+  type Language,
+  formatNotesCount,
+  formatWordsCount,
+  formatCharsCount,
+} from './core/i18n/i18n';
 import { settingsManager, type ThemePreset } from './core/settings/settings';
 import { metadataManager } from './core/metadata/metadata';
 import { FLATICON_SVGS, EMOJI_LIST, renderIconPreview } from './core/icons/icons';
+import { getMarkdownGuideHtml } from './core/guide/markdownGuide';
 
 interface TreeNode {
   name: string;
@@ -23,6 +30,7 @@ class BasaltApp {
   private allEntries: FileEntry[] = [];
   private searchQuery: string = '';
   private iconPickerTarget: { path: string; isDir: boolean } | null = null;
+  private lastStats: EditorStats = { words: 0, chars: 0, lines: 0 };
 
   // DOM Элементы
   private btnOpenVault = document.getElementById('btn-open-vault') as HTMLButtonElement;
@@ -46,14 +54,25 @@ class BasaltApp {
   private workspaceSelect = document.getElementById('workspace-select') as HTMLSelectElement;
   private btnCollapseSidebar = document.getElementById('btn-collapse-sidebar') as HTMLButtonElement;
   private btnExpandSidebar = document.getElementById('btn-expand-sidebar') as HTMLButtonElement;
+  private btnToggleSidebar = document.getElementById('btn-toggle-sidebar') as HTMLButtonElement | null;
 
-  // Модальные окна и корзина
+  // Модальные окна, корзина и справка
   private btnOpenTrash = document.getElementById('btn-open-trash') as HTMLButtonElement;
   private btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
+  private btnOpenInfo = document.getElementById('btn-open-info') as HTMLButtonElement;
   private trashBadgeCount = document.getElementById('trash-badge-count') as HTMLElement;
   private modalSettings = document.getElementById('modal-settings') as HTMLElement;
   private modalIconPicker = document.getElementById('modal-icon-picker') as HTMLElement;
   private modalTrash = document.getElementById('modal-trash') as HTMLElement;
+  private modalInfo = document.getElementById('modal-info') as HTMLElement;
+  private infoGuideContent = document.getElementById('info-guide-content') as HTMLElement;
+
+  // Настройки корзины и вкладки иконок
+  private trashRetentionInput = document.getElementById('trash-retention-input') as HTMLInputElement;
+  private tabBtnSvg = document.getElementById('tab-btn-svg') as HTMLButtonElement;
+  private tabBtnEmoji = document.getElementById('tab-btn-emoji') as HTMLButtonElement;
+  private panelSvgIcons = document.getElementById('panel-svg-icons') as HTMLElement;
+  private panelEmojiIcons = document.getElementById('panel-emoji-icons') as HTMLElement;
 
   constructor() {
     this.initEditor();
@@ -69,9 +88,9 @@ class BasaltApp {
 
   private checkBrowserSupport() {
     if (!this.adapter.isSupported()) {
-      this.vaultTitle.textContent = 'Браузер не поддерживается';
+      this.vaultTitle.textContent = t('browserNotSupported');
       this.btnOpenVault.disabled = true;
-      this.btnOpenVault.title = 'Требуется браузер с поддержкой File System Access API (Chrome, Edge)';
+      this.btnOpenVault.title = t('browserNotSupportedDesc');
     }
   }
 
@@ -96,6 +115,10 @@ class BasaltApp {
     this.btnExpandSidebar.addEventListener('click', () => {
       this.sidebar.classList.remove('collapsed');
       this.btnExpandSidebar.classList.remove('visible');
+    });
+
+    this.btnToggleSidebar?.addEventListener('click', () => {
+      this.sidebar.classList.toggle('open');
     });
 
     // Живой поиск
@@ -124,9 +147,10 @@ class BasaltApp {
       }
     });
 
-    // Корзина и Настройки
+    // Корзина, Настройки и Справка
     this.btnOpenTrash.addEventListener('click', () => this.openTrashModal());
     this.btnOpenSettings.addEventListener('click', () => this.openSettingsModal());
+    this.btnOpenInfo.addEventListener('click', () => this.openInfoModal());
   }
 
   // ==========================================================================
@@ -193,19 +217,39 @@ class BasaltApp {
         settingsManager.save({ language: lang });
         this.updateI18nLabels();
         this.renderFilteredTree();
+        this.handleStatsChange(this.lastStats);
+        if (this.modalInfo.style.display !== 'none') {
+          this.openInfoModal();
+        }
       });
     });
 
-    // Срок хранения корзины
-    const retentionSlider = document.getElementById('trash-retention-slider') as HTMLInputElement;
-    const retentionVal = document.getElementById('trash-retention-value') as HTMLElement;
-    const retentionUnit = document.getElementById('trash-retention-unit') as HTMLElement;
+    // Срок хранения в корзине: ручной ввод числа
+    if (this.trashRetentionInput) {
+      this.trashRetentionInput.addEventListener('input', () => {
+        const rawVal = parseInt(this.trashRetentionInput.value, 10);
+        const days = isNaN(rawVal) || rawVal < 0 ? 0 : rawVal;
+        settingsManager.save({ trashRetentionDays: days });
+        const hint = document.getElementById('trash-retention-unit-hint');
+        if (hint) {
+          hint.textContent = days === 0 ? t('infinity') : t('daysUnit');
+        }
+      });
+    }
 
-    retentionSlider.addEventListener('input', () => {
-      const days = parseInt(retentionSlider.value, 10);
-      retentionVal.textContent = days === 0 ? t('infinity') : String(days);
-      retentionUnit.textContent = days === 0 ? '' : t('daysCount');
-      settingsManager.save({ trashRetentionDays: days });
+    // Вкладки выбора иконок (Векторные значки / Эмодзи)
+    this.tabBtnSvg?.addEventListener('click', () => {
+      this.tabBtnSvg.classList.add('active');
+      this.tabBtnEmoji.classList.remove('active');
+      this.panelSvgIcons.style.display = 'block';
+      this.panelEmojiIcons.style.display = 'none';
+    });
+
+    this.tabBtnEmoji?.addEventListener('click', () => {
+      this.tabBtnEmoji.classList.add('active');
+      this.tabBtnSvg.classList.remove('active');
+      this.panelEmojiIcons.style.display = 'block';
+      this.panelSvgIcons.style.display = 'none';
     });
 
     // Сброс иконки в Icon Picker
@@ -242,15 +286,22 @@ class BasaltApp {
       b.classList.toggle('active', b.getAttribute('data-lang') === s.language);
     });
 
-    // Корзина
-    const slider = document.getElementById('trash-retention-slider') as HTMLInputElement;
-    slider.value = String(s.trashRetentionDays);
-    const valEl = document.getElementById('trash-retention-value')!;
-    valEl.textContent = s.trashRetentionDays === 0 ? t('infinity') : String(s.trashRetentionDays);
-    document.getElementById('trash-retention-unit')!.textContent =
-      s.trashRetentionDays === 0 ? '' : t('daysCount');
+    // Срок хранения в корзине
+    if (this.trashRetentionInput) {
+      this.trashRetentionInput.value = String(s.trashRetentionDays);
+    }
+    const hint = document.getElementById('trash-retention-unit-hint');
+    if (hint) {
+      hint.textContent = s.trashRetentionDays === 0 ? t('infinity') : t('daysUnit');
+    }
 
     this.modalSettings.style.display = 'flex';
+  }
+
+  private openInfoModal() {
+    const lang = settingsManager.get().language;
+    this.infoGuideContent.innerHTML = getMarkdownGuideHtml(lang);
+    this.modalInfo.style.display = 'flex';
   }
 
   private openTrashModal() {
@@ -366,6 +417,12 @@ class BasaltApp {
       emojiGrid.appendChild(btn);
     });
 
+    // Показываем первую вкладку (SVG) по умолчанию
+    this.tabBtnSvg.classList.add('active');
+    this.tabBtnEmoji.classList.remove('active');
+    this.panelSvgIcons.style.display = 'block';
+    this.panelEmojiIcons.style.display = 'none';
+
     this.modalIconPicker.style.display = 'flex';
   }
 
@@ -385,25 +442,57 @@ class BasaltApp {
 
   private updateI18nLabels() {
     document.getElementById('txt-vault-label')!.textContent = `${t('vault')}:`;
+    if (!this.adapter.isOpen()) {
+      this.vaultTitle.textContent = this.adapter.isSupported() ? t('notConnected') : t('browserNotSupported');
+    }
     document.getElementById('txt-btn-open-vault')!.textContent = t('openFolder');
     document.getElementById('txt-files-title')!.textContent = t('filesAndFolders');
     document.getElementById('txt-workspace-label')!.textContent = `${t('workspace')}:`;
     this.searchInput.placeholder = t('searchPlaceholder');
     document.getElementById('txt-sidebar-empty')!.textContent = t('emptyVaultText');
+
+    // Настройки
     document.getElementById('txt-settings-heading')!.textContent = t('settingsTitle');
     document.getElementById('txt-theme-label')!.textContent = t('theme');
     document.getElementById('txt-bg-color-label')!.textContent = `${t('bgColor')}:`;
     document.getElementById('txt-accent-color-label')!.textContent = `${t('accentColor')}:`;
     document.getElementById('txt-lang-label')!.textContent = t('language');
     document.getElementById('txt-trash-retention-label')!.textContent = t('trashRetentionPeriod');
+    const hint = document.getElementById('trash-retention-unit-hint');
+    if (hint) {
+      hint.textContent = settingsManager.get().trashRetentionDays === 0 ? t('infinity') : t('daysUnit');
+    }
+
+    // Корзина
     document.getElementById('txt-trash-heading')!.textContent = t('trashTitle');
+
+    // Выбор иконки
     document.getElementById('txt-icon-picker-heading')!.textContent = t('chooseIconTitle');
+    document.getElementById('tab-btn-svg')!.textContent = t('tabSvgIcons');
+    document.getElementById('tab-btn-emoji')!.textContent = t('tabEmojis');
+    document.getElementById('txt-btn-reset-icon')!.textContent = t('resetIconDefault');
+
+    // Справка
+    document.getElementById('txt-info-heading')!.textContent = t('infoTitle');
 
     // Кнопки пресетов
     document.getElementById('chip-preset-default')!.querySelector('span:last-child')!.textContent = t('themePresetDefault');
     document.getElementById('chip-preset-oled')!.querySelector('span:last-child')!.textContent = t('themePresetOled');
     document.getElementById('chip-preset-light')!.querySelector('span:last-child')!.textContent = t('themePresetLight');
     document.getElementById('chip-preset-custom')!.querySelector('span:last-child')!.textContent = t('themePresetCustom');
+
+    // Тултипы / подсказки
+    this.btnNewFolder.title = t('newFolder');
+    this.btnNewNote.title = t('newNote');
+    this.btnCollapseSidebar.title = t('collapseSidebar');
+    this.btnExpandSidebar.title = t('expandSidebar');
+    this.btnOpenTrash.title = t('trash');
+    this.btnOpenSettings.title = t('settings');
+    this.btnOpenInfo.title = t('infoTooltip');
+    this.btnOpenVault.title = this.adapter.isSupported() ? t('openFolder') : t('browserNotSupportedDesc');
+
+    // Обновляем счетчики слов и знаков
+    this.handleStatsChange(this.lastStats);
   }
 
   // ==========================================================================
@@ -436,8 +525,8 @@ class BasaltApp {
         await this.openFile(firstFile);
       } else {
         const welcome = await this.adapter.createFile(
-          'Заметки.md',
-          `# ${t('welcomeTitle')}\n\nПапка пуста. Начните писать здесь свои мысли или нажмите **«+»**, чтобы создать новую заметку.\n`
+          t('welcomeFileName'),
+          `# ${t('welcomeTitle')}\n\n${t('welcomeBody')}\n`
         );
         this.allEntries = await this.adapter.refresh();
         this.updateWorkspacesDropdown();
@@ -447,8 +536,8 @@ class BasaltApp {
 
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err: any) {
-      console.error('Ошибка открытия папки:', err);
-      alert(`Не удалось открыть папку: ${err.message}`);
+      console.error(t('errorOpenVault'), err);
+      alert(`${t('errorOpenVault')}: ${err.message}`);
       this.setSaveStatus(t('saveStatusError'), false);
     }
   }
@@ -497,7 +586,7 @@ class BasaltApp {
       this.updateWorkspacesDropdown();
       this.renderFilteredTree();
     } catch (e: any) {
-      alert(`Ошибка создания пространства: ${e.message}`);
+      alert(`${t('errorCreateFolder')}: ${e.message}`);
     }
   }
 
@@ -519,14 +608,14 @@ class BasaltApp {
     }
 
     const filesTotal = filtered.filter((e) => !e.isDirectory).length;
-    this.filesCount.textContent = `${filesTotal} ${t('notesCount')}`;
+    this.filesCount.textContent = formatNotesCount(filesTotal);
 
     this.fileListContainer.innerHTML = '';
 
     if (filtered.length === 0) {
       this.fileListContainer.innerHTML = `
         <div class="sidebar-empty">
-          <p>${this.searchQuery ? 'Ничего не найдено' : t('emptyFolderText')}</p>
+          <p>${this.searchQuery ? t('nothingFound') : t('emptyFolderText')}</p>
         </div>
       `;
       return;
@@ -598,7 +687,7 @@ class BasaltApp {
         const iconHtml = customIcon ? renderIconPreview(customIcon) : (isCollapsed ? '📁' : '📂');
 
         row.innerHTML = `
-          <span class="folder-chevron ${isCollapsed ? '' : 'open'}">
+          <span class="folder-chevron ${isCollapsed ? '' : 'open'}" title="${isCollapsed ? t('expandSidebar') : t('collapseSidebar')}">
             <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
@@ -607,7 +696,40 @@ class BasaltApp {
             <span class="folder-icon">${iconHtml}</span>
           </span>
           <span class="folder-name" title="${node.path}">${node.name}</span>
+          <div class="folder-actions">
+            <button class="folder-act-btn btn-folder-new-file" title="${t('createNoteInFolder')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button class="folder-act-btn btn-folder-new-sub" title="${t('createSubfolder')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+            </button>
+            <button class="folder-act-btn danger btn-folder-delete" title="${t('deleteFolder')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
         `;
+
+        // Шеврон: ТОЛЬКО сворачивание/разворачивание
+        const chevron = row.querySelector('.folder-chevron');
+        chevron?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.collapsedFolders.has(node.path)) {
+            this.collapsedFolders.delete(node.path);
+          } else {
+            this.collapsedFolders.add(node.path);
+          }
+          this.renderFilteredTree();
+        });
 
         // Клик по иконке открывает Icon Picker
         const iconWrapper = row.querySelector('.item-icon-wrapper');
@@ -616,23 +738,37 @@ class BasaltApp {
           this.openIconPicker(node.path, true);
         });
 
+        // 3 Действия папки
+        const btnNewFile = row.querySelector('.btn-folder-new-file');
+        btnNewFile?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleCreateNewNoteIn(node.path);
+        });
+
+        const btnNewSub = row.querySelector('.btn-folder-new-sub');
+        btnNewSub?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleCreateNewFolderIn(node.path);
+        });
+
+        const btnDeleteDir = row.querySelector('.btn-folder-delete');
+        btnDeleteDir?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleDeleteFolder(node);
+        });
+
+        // Клик по самой строке папки: ТОЛЬКО выделение папки!
+        row.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.selectedFolder = this.selectedFolder === node.path ? '' : node.path;
+          this.renderFilteredTree();
+        });
+
         // Драг-энд-дроп для папки
         this.bindDragAndDrop(row, node.path, true);
 
         const childrenContainer = document.createElement('div');
         childrenContainer.className = `folder-children ${isCollapsed ? 'collapsed' : ''}`;
-
-        row.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (this.collapsedFolders.has(node.path)) {
-            this.collapsedFolders.delete(node.path);
-          } else {
-            this.collapsedFolders.add(node.path);
-          }
-
-          this.selectedFolder = this.selectedFolder === node.path ? '' : node.path;
-          this.renderFilteredTree();
-        });
 
         folderEl.appendChild(row);
         this.renderTreeNodes(node, childrenContainer);
@@ -734,8 +870,8 @@ class BasaltApp {
           this.renderFilteredTree();
           this.setSaveStatus(t('saveStatusSaved'), false);
         } catch (err: any) {
-          console.error('Ошибка перемещения:', err);
-          alert(`Не удалось переместить: ${err.message}`);
+          console.error(t('errorMove'), err);
+          alert(`${t('errorMove')}: ${err.message}`);
           this.setSaveStatus(t('saveStatusError'), false);
         }
       });
@@ -743,7 +879,7 @@ class BasaltApp {
   }
 
   // ==========================================================================
-  // РАБОТА С ФАЙЛАМИ
+  // РАБОТА С ФАЙЛАМИ И ПАПКАМИ
   // ==========================================================================
   private async openFile(file: FileEntry) {
     try {
@@ -761,8 +897,8 @@ class BasaltApp {
       this.renderFilteredTree();
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err: any) {
-      console.error('Ошибка чтения файла:', err);
-      alert(`Не удалось прочитать файл: ${err.message}`);
+      console.error(t('errorReadFile'), err);
+      alert(`${t('errorReadFile')}: ${err.message}`);
       this.setSaveStatus(t('saveStatusError'), false);
     }
   }
@@ -775,7 +911,7 @@ class BasaltApp {
       await this.adapter.writeFile(this.currentFile.path, content);
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err) {
-      console.error('Ошибка автосохранения:', err);
+      console.error(t('saveStatusError'), err);
       this.setSaveStatus(t('saveStatusError'), false);
     }
   }
@@ -805,8 +941,36 @@ class BasaltApp {
       await this.openFile(newFile);
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err: any) {
-      console.error('Ошибка создания заметки:', err);
-      alert(`Не удалось создать файл: ${err.message}`);
+      console.error(t('errorCreateFile'), err);
+      alert(`${t('errorCreateFile')}: ${err.message}`);
+      this.setSaveStatus(t('saveStatusError'), false);
+    }
+  }
+
+  private async handleCreateNewNoteIn(parentPath: string) {
+    if (!this.adapter.isOpen()) return;
+
+    const name = prompt(`${t('promptNoteName')} (${parentPath}):`, t('newNote'));
+    if (!name || name.trim().length === 0) return;
+
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      const cleanName = name.trim();
+      const newFile = await this.adapter.createFile(
+        cleanName,
+        `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
+        parentPath
+      );
+
+      this.collapsedFolders.delete(parentPath);
+      this.selectedFolder = parentPath;
+      this.allEntries = await this.adapter.refresh();
+      this.renderFilteredTree();
+      await this.openFile(newFile);
+      this.setSaveStatus(t('saveStatusSaved'), false);
+    } catch (err: any) {
+      console.error(t('errorCreateFile'), err);
+      alert(`${t('errorCreateFile')}: ${err.message}`);
       this.setSaveStatus(t('saveStatusError'), false);
     }
   }
@@ -831,8 +995,62 @@ class BasaltApp {
       this.renderFilteredTree();
       this.setSaveStatus(t('saveStatusReady'), false);
     } catch (err: any) {
-      console.error('Ошибка создания папки:', err);
-      alert(`Не удалось создать папку: ${err.message}`);
+      console.error(t('errorCreateFolder'), err);
+      alert(`${t('errorCreateFolder')}: ${err.message}`);
+      this.setSaveStatus(t('saveStatusError'), false);
+    }
+  }
+
+  private async handleCreateNewFolderIn(parentPath: string) {
+    if (!this.adapter.isOpen()) return;
+
+    const name = prompt(`${t('promptFolderName')} (${parentPath}):`, t('newFolder'));
+    if (!name || name.trim().length === 0) return;
+
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      await this.adapter.createFolder(name.trim(), parentPath);
+
+      this.collapsedFolders.delete(parentPath);
+      this.selectedFolder = parentPath;
+      this.allEntries = await this.adapter.refresh();
+      this.updateWorkspacesDropdown();
+      this.renderFilteredTree();
+      this.setSaveStatus(t('saveStatusReady'), false);
+    } catch (err: any) {
+      console.error(t('errorCreateFolder'), err);
+      alert(`${t('errorCreateFolder')}: ${err.message}`);
+      this.setSaveStatus(t('saveStatusError'), false);
+    }
+  }
+
+  private async handleDeleteFolder(node: TreeNode) {
+    if (!confirm(t('confirmDeleteFolder', { name: node.name }))) {
+      return;
+    }
+
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      await this.adapter.deleteFolder(node.path);
+
+      if (this.selectedFolder === node.path || this.selectedFolder.startsWith(`${node.path}/`)) {
+        this.selectedFolder = '';
+      }
+
+      if (this.currentFile && (this.currentFile.path === node.path || this.currentFile.path.startsWith(`${node.path}/`))) {
+        this.currentFile = null;
+        this.activeFileName.textContent = '';
+        this.activeFileIcon.textContent = '📄';
+        this.editor?.setContent('');
+      }
+
+      this.allEntries = await this.adapter.refresh();
+      this.updateWorkspacesDropdown();
+      this.renderFilteredTree();
+      this.setSaveStatus(t('saveStatusReady'), false);
+    } catch (err: any) {
+      console.error(t('errorDelete'), err);
+      alert(`${t('errorDelete')}: ${err.message}`);
       this.setSaveStatus(t('saveStatusError'), false);
     }
   }
@@ -865,8 +1083,8 @@ class BasaltApp {
 
       this.renderFilteredTree();
     } catch (err: any) {
-      console.error('Ошибка удаления:', err);
-      alert(`Не удалось удалить: ${err.message}`);
+      console.error(t('errorDelete'), err);
+      alert(`${t('errorDelete')}: ${err.message}`);
     }
   }
 
@@ -880,8 +1098,9 @@ class BasaltApp {
   }
 
   private handleStatsChange(stats: EditorStats) {
-    this.statWords.textContent = `${stats.words} ${t('wordsCount')}`;
-    this.statChars.textContent = `${stats.chars} ${t('charsCount')}`;
+    this.lastStats = stats;
+    this.statWords.textContent = formatWordsCount(stats.words);
+    this.statChars.textContent = formatCharsCount(stats.chars);
   }
 }
 
