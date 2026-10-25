@@ -8,7 +8,7 @@ import {
 } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { basaltTheme } from './theme';
 
@@ -61,9 +61,62 @@ export class BasaltEditor {
           return true;
         },
       },
+      {
+        key: 'Mod-z',
+        run: undo,
+        preventDefault: true,
+      },
+      {
+        key: 'Mod-Shift-z',
+        run: redo,
+        preventDefault: true,
+      },
+      {
+        key: 'Mod-y',
+        run: redo,
+        preventDefault: true,
+      },
     ];
 
-    const clickLinkHandler = EditorView.domEventHandlers({
+    const domHandlers = EditorView.domEventHandlers({
+      keydown: (event, view) => {
+        const isMod = event.ctrlKey || event.metaKey;
+        if (!isMod) return false;
+
+        const isZ =
+          event.key === 'z' ||
+          event.key === 'Z' ||
+          event.code === 'KeyZ' ||
+          event.key === 'я' ||
+          event.key === 'Я';
+
+        const isY =
+          event.key === 'y' ||
+          event.key === 'Y' ||
+          event.code === 'KeyY' ||
+          event.key === 'н' ||
+          event.key === 'Н';
+
+        // Redo: Ctrl+Shift+Z / Cmd+Shift+Z
+        if (event.shiftKey && isZ) {
+          event.preventDefault();
+          return redo(view);
+        }
+
+        // Redo: Ctrl+Y / Cmd+Y
+        if (!event.shiftKey && isY) {
+          event.preventDefault();
+          return redo(view);
+        }
+
+        // Undo: Ctrl+Z / Cmd+Z
+        if (!event.shiftKey && isZ) {
+          event.preventDefault();
+          return undo(view);
+        }
+
+        return false;
+      },
       click: (event, view) => {
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
         if (pos === null) return false;
@@ -122,7 +175,7 @@ export class BasaltEditor {
       markdown(),
       basaltTheme,
       keymap.of([...customKeymaps, ...defaultKeymap, ...historyKeymap]),
-      clickLinkHandler,
+      domHandlers,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const content = update.state.doc.toString();
