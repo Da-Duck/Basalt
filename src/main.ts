@@ -475,7 +475,7 @@ class BasaltApp {
       btn.className = 'icon-pick-btn';
       btn.innerHTML = `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svgPath}</svg>`;
       btn.addEventListener('click', () => {
-        metadataManager.setIcon(path, id);
+        metadataManager.setIcon(path, id, isDir);
         this.modalIconPicker.style.display = 'none';
         this.renderFilteredTree();
         this.updateActiveFileIcon();
@@ -489,7 +489,7 @@ class BasaltApp {
       btn.className = 'icon-pick-btn';
       btn.textContent = emoji;
       btn.addEventListener('click', () => {
-        metadataManager.setIcon(path, emoji);
+        metadataManager.setIcon(path, emoji, isDir);
         this.modalIconPicker.style.display = 'none';
         this.renderFilteredTree();
         this.updateActiveFileIcon();
@@ -614,6 +614,17 @@ class BasaltApp {
       this.selectedFolder = '';
 
       this.allEntries = entries;
+
+      // Привязываем файловый адаптер к менеджеру метаданных и синхронизируем .basalt/metadata.json
+      await metadataManager.attachAdapter(this.adapter);
+
+      // Инициализируем характеристики для существующих заметок хранилища
+      for (const entry of entries) {
+        if (!entry.isDirectory) {
+          metadataManager.touchNote(entry.path, entry.lastModified);
+        }
+      }
+
       this.updateWorkspacesDropdown();
       this.renderFilteredTree();
 
@@ -1040,6 +1051,7 @@ class BasaltApp {
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
       await this.adapter.writeFile(this.currentFile.path, content);
+      metadataManager.touchNote(this.currentFile.path);
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err) {
       console.error(t('saveStatusError'), err);
@@ -1062,6 +1074,8 @@ class BasaltApp {
         `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
         this.selectedFolder
       );
+
+      metadataManager.touchNote(newFile.path, newFile.lastModified || Date.now());
 
       if (this.selectedFolder) {
         this.collapsedFolders.delete(this.selectedFolder);
@@ -1092,6 +1106,8 @@ class BasaltApp {
         `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
         parentPath
       );
+
+      metadataManager.touchNote(newFile.path, newFile.lastModified || Date.now());
 
       this.collapsedFolders.delete(parentPath);
       this.selectedFolder = parentPath;

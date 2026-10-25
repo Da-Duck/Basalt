@@ -333,4 +333,29 @@ export class WebFileAdapter implements FileSystemAdapter {
       return newFolder;
     }
   }
+
+  async readVaultMetadata(): Promise<string | null> {
+    if (!this.dirHandle) return null;
+    try {
+      const dotDir = await this.dirHandle.getDirectoryHandle('.basalt', { create: false });
+      const fileHandle = await dotDir.getFileHandle('metadata.json', { create: false });
+      const file = await fileHandle.getFile();
+      return await file.text();
+    } catch {
+      return null;
+    }
+  }
+
+  async writeVaultMetadata(content: string): Promise<void> {
+    if (!this.dirHandle) return;
+    try {
+      const dotDir = await this.dirHandle.getDirectoryHandle('.basalt', { create: true });
+      const fileHandle = await dotDir.getFileHandle('metadata.json', { create: true });
+      const writable = await (fileHandle as any).createWritable();
+      await writable.write(content);
+      await writable.close();
+    } catch (err) {
+      console.warn('Не удалось записать .basalt/metadata.json:', err);
+    }
+  }
 }

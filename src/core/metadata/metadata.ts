@@ -1,116 +1,317 @@
+import type { FileSystemAdapter } from '../adapter/FileSystemAdapter';
+
 export interface TrashItem {
   id: string;
   name: string;
   originalPath: string;
   content: string;
   createdAt: number;
+  createdAtISO: string;
   deletedAt: number;
+  deletedAtISO: string;
 }
 
-export interface BasaltMetadata {
-  customIcons: Record<string, string>;
-  customColors: Record<string, string>;
+export interface NoteCharacteristics {
+  icon?: string;
+  color?: string;
+  createdAt: number;
+  createdAtISO: string;
+  updatedAt: number;
+  updatedAtISO: string;
+  tags?: string[];
+}
+
+export interface FolderCharacteristics {
+  icon?: string;
+  createdAt?: number;
+  createdAtISO?: string;
+}
+
+export interface BasaltVaultMetadata {
+  version: number;
+  vaultName: string;
+  updatedAt: number;
+  updatedAtISO: string;
+  notes: Record<string, NoteCharacteristics>;
+  folders: Record<string, FolderCharacteristics>;
   trash: TrashItem[];
 }
 
-const DEFAULT_METADATA: BasaltMetadata = {
-  customIcons: {},
-  customColors: {},
+const DEFAULT_METADATA: BasaltVaultMetadata = {
+  version: 1,
+  vaultName: '',
+  updatedAt: Date.now(),
+  updatedAtISO: new Date().toISOString(),
+  notes: {},
+  folders: {},
   trash: [],
 };
 
 class MetadataManager {
-  private data: BasaltMetadata;
+  private data: BasaltVaultMetadata;
+  private adapter: FileSystemAdapter | null = null;
+  private isSavingToFile: boolean = false;
 
   constructor() {
-    this.data = this.load();
+    this.data = this.loadLocalBackup();
   }
 
-  private load(): BasaltMetadata {
+  // Загрузка резервной копии из localStorage (для быстрой инициализации до открытия папки)
+  private loadLocalBackup(): BasaltVaultMetadata {
     try {
       const raw = localStorage.getItem('basalt-metadata');
       if (raw) {
         const parsed = JSON.parse(raw);
+
+        // Поддержка миграции со старого формата (где были плоские customIcons и customColors)
+        const notes: Record<string, NoteCharacteristics> = parsed.notes || {};
+        const folders: Record<string, FolderCharacteristics> = parsed.folders || {};
+
+        if (parsed.customIcons) {
+          for (const [path, icon] of Object.entries(parsed.customIcons as Record<string, string>)) {
+            if (path.endsWith('.md') || path.endsWith('.txt')) {
+              notes[path] = {
+                ...(notes[path] || {
+                  createdAt: Date.now(),
+                  createdAtISO: new Date().toISOString(),
+                  updatedAt: Date.now(),
+                  updatedAtISO: new Date().toISOString(),
+                }),
+                icon,
+              };
+            } else {
+              folders[path] = {
+                ...(folders[path] || {
+                  createdAt: Date.now(),
+                  createdAtISO: new Date().toISOString(),
+                }),
+                icon,
+              };
+            }
+          }
+        }
+
+        if (parsed.customColors) {
+          for (const [path, color] of Object.entries(parsed.customColors as Record<string, string>)) {
+            notes[path] = {
+              ...(notes[path] || {
+                createdAt: Date.now(),
+                createdAtISO: new Date().toISOString(),
+                updatedAt: Date.now(),
+                updatedAtISO: new Date().toISOString(),
+              }),
+              color,
+            };
+          }
+        }
+
         return {
-          customIcons: parsed.customIcons || {},
-          customColors: parsed.customColors || {},
+          version: parsed.version || 1,
+          vaultName: parsed.vaultName || '',
+          updatedAt: parsed.updatedAt || Date.now(),
+          updatedAtISO: parsed.updatedAtISO || new Date().toISOString(),
+          notes,
+          folders,
           trash: parsed.trash || [],
         };
       }
     } catch (e) {
-      console.error('Ошибка чтения метаданных:', e);
+      console.error('Ошибка чтения локальных метаданных:', e);
     }
     return { ...DEFAULT_METADATA };
   }
 
-  private save() {
+  private saveLocalBackup() {
     try {
       localStorage.setItem('basalt-metadata', JSON.stringify(this.data));
     } catch (e) {
-      console.error('Ошибка сохранения метаданных:', e);
+      console.error('Ошибка сохранения локального бэкапа метаданных:', e);
     }
   }
 
-  // === Иконки ===
-  public setIcon(path: string, icon: string) {
-    this.data.customIcons[path] = icon;
+  // Привязка файлового адаптера хранилища и чтение .basalt/metadata.json
+  public async attachAdapter(adapter: FileSystemAdapter): Promise<void> {
+    this.adapter = adapter;
+
+    try {
+      const vaultContent = await adapter.readVaultMetadata();
+      if (vaultContent) {
+        const parsed = JSON.parse(vaultContent);
+        this.data = {
+          version: parsed.version || 1,
+          vaultName: adapter.getVaultName(),
+          updatedAt: parsed.updatedAt || Date.now(),
+          updatedAtISO: parsed.updatedAtISO || new Date().toISOString(),
+          notes: parsed.notes || {},
+          folders: parsed.folders || {},
+          trash: parsed.trash || [],
+        };
+        this.saveLocalBackup();
+      } else {
+        // Файла метаданных ещё нет в хранилище — инициализируем и сохраняем явно
+        this.data.vaultName = adapter.getVaultName();
+        this.data.updatedAt = Date.now();
+        this.data.updatedAtISO = new Date().toISOString();
+        await this.saveToVaultFile();
+      }
+    } catch (err) {
+      console.warn('Не удалось загрузить .basalt/metadata.json, используется локальная копия:', err);
+    }
+  }
+
+  // Сохранение файла метаданных .basalt/metadata.json в папке хранилища
+  private async saveToVaultFile(): Promise<void> {
+    if (!this.adapter || !this.adapter.isOpen() || this.isSavingToFile) return;
+
+    this.isSavingToFile = true;
+    try {
+      this.data.vaultName = this.adapter.getVaultName();
+      this.data.updatedAt = Date.now();
+      this.data.updatedAtISO = new Date().toISOString();
+
+      // Записываем структурированный JSON с отступами в 2 пробела для наглядности
+      const formattedJson = JSON.stringify(this.data, null, 2);
+      await this.adapter.writeVaultMetadata(formattedJson);
+    } catch (err) {
+      console.error('Ошибка сохранения .basalt/metadata.json:', err);
+    } finally {
+      this.isSavingToFile = false;
+    }
+  }
+
+  private save() {
+    this.data.updatedAt = Date.now();
+    this.data.updatedAtISO = new Date().toISOString();
+    this.saveLocalBackup();
+    this.saveToVaultFile().catch(() => {});
+  }
+
+  // === Иконки (Заметки и Папки) ===
+  public setIcon(path: string, icon: string, isDirectory: boolean = false) {
+    if (isDirectory) {
+      if (!this.data.folders[path]) {
+        this.data.folders[path] = {
+          createdAt: Date.now(),
+          createdAtISO: new Date().toISOString(),
+        };
+      }
+      this.data.folders[path].icon = icon;
+    } else {
+      if (!this.data.notes[path]) {
+        this.data.notes[path] = {
+          createdAt: Date.now(),
+          createdAtISO: new Date().toISOString(),
+          updatedAt: Date.now(),
+          updatedAtISO: new Date().toISOString(),
+        };
+      }
+      this.data.notes[path].icon = icon;
+    }
     this.save();
   }
 
   public getIcon(path: string): string | null {
-    return this.data.customIcons[path] || null;
+    if (this.data.notes[path]?.icon) {
+      return this.data.notes[path].icon!;
+    }
+    if (this.data.folders[path]?.icon) {
+      return this.data.folders[path].icon!;
+    }
+    return null;
   }
 
   public removeIcon(path: string) {
-    delete this.data.customIcons[path];
+    if (this.data.notes[path]) {
+      delete this.data.notes[path].icon;
+    }
+    if (this.data.folders[path]) {
+      delete this.data.folders[path].icon;
+    }
     this.save();
   }
 
   // === Цвета названий заметок ===
   public setColor(path: string, color: string) {
-    this.data.customColors[path] = color;
+    if (!this.data.notes[path]) {
+      this.data.notes[path] = {
+        createdAt: Date.now(),
+        createdAtISO: new Date().toISOString(),
+        updatedAt: Date.now(),
+        updatedAtISO: new Date().toISOString(),
+      };
+    }
+    this.data.notes[path].color = color;
     this.save();
   }
 
   public getColor(path: string): string | null {
-    return this.data.customColors[path] || null;
+    return this.data.notes[path]?.color || null;
   }
 
   public removeColor(path: string) {
-    delete this.data.customColors[path];
+    if (this.data.notes[path]) {
+      delete this.data.notes[path].color;
+    }
     this.save();
+  }
+
+  // === Даты и характеристики заметки ===
+  public touchNote(path: string, createdAt?: number) {
+    const now = Date.now();
+    const existing = this.data.notes[path];
+
+    if (!existing) {
+      const created = createdAt || now;
+      this.data.notes[path] = {
+        createdAt: created,
+        createdAtISO: new Date(created).toISOString(),
+        updatedAt: now,
+        updatedAtISO: new Date(now).toISOString(),
+      };
+    } else {
+      existing.updatedAt = now;
+      existing.updatedAtISO = new Date(now).toISOString();
+      if (createdAt && !existing.createdAt) {
+        existing.createdAt = createdAt;
+        existing.createdAtISO = new Date(createdAt).toISOString();
+      }
+    }
+    this.save();
+  }
+
+  public getNoteCharacteristics(path: string): NoteCharacteristics | null {
+    return this.data.notes[path] || null;
   }
 
   // === Миграция путей при переименовании или перемещении ===
   public migratePath(oldPath: string, newPath: string, isDirectory: boolean) {
     if (!isDirectory) {
-      if (this.data.customIcons[oldPath]) {
-        this.data.customIcons[newPath] = this.data.customIcons[oldPath];
-        delete this.data.customIcons[oldPath];
-      }
-      if (this.data.customColors[oldPath]) {
-        this.data.customColors[newPath] = this.data.customColors[oldPath];
-        delete this.data.customColors[oldPath];
+      if (this.data.notes[oldPath]) {
+        this.data.notes[newPath] = this.data.notes[oldPath];
+        delete this.data.notes[oldPath];
       }
     } else {
       const oldPrefix = `${oldPath}/`;
       const newPrefix = `${newPath}/`;
 
-      if (this.data.customIcons[oldPath]) {
-        this.data.customIcons[newPath] = this.data.customIcons[oldPath];
-        delete this.data.customIcons[oldPath];
+      if (this.data.folders[oldPath]) {
+        this.data.folders[newPath] = this.data.folders[oldPath];
+        delete this.data.folders[oldPath];
       }
-      for (const [k, v] of Object.entries(this.data.customIcons)) {
+
+      // Дочерние папки
+      for (const [k, v] of Object.entries(this.data.folders)) {
         if (k.startsWith(oldPrefix)) {
-          delete this.data.customIcons[k];
-          this.data.customIcons[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
+          delete this.data.folders[k];
+          this.data.folders[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
         }
       }
 
-      for (const [k, v] of Object.entries(this.data.customColors)) {
+      // Дочерние заметки
+      for (const [k, v] of Object.entries(this.data.notes)) {
         if (k.startsWith(oldPrefix)) {
-          delete this.data.customColors[k];
-          this.data.customColors[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
+          delete this.data.notes[k];
+          this.data.notes[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
         }
       }
     }
@@ -123,13 +324,18 @@ class MetadataManager {
   }
 
   public addToTrash(item: { name: string; originalPath: string; content: string; createdAt?: number }) {
+    const now = Date.now();
+    const created = item.createdAt || now - 3600000;
+
     const trashItem: TrashItem = {
-      id: `trash_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `trash_${now}_${Math.random().toString(36).substring(2, 7)}`,
       name: item.name,
       originalPath: item.originalPath,
       content: item.content,
-      createdAt: item.createdAt || Date.now() - 3600000,
-      deletedAt: Date.now(),
+      createdAt: created,
+      createdAtISO: new Date(created).toISOString(),
+      deletedAt: now,
+      deletedAtISO: new Date(now).toISOString(),
     };
 
     this.data.trash.unshift(trashItem);

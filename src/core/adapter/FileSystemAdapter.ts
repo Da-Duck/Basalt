@@ -21,4 +21,6 @@ export interface FileSystemAdapter {
   moveEntry(oldPath: string, newParentPath: string): Promise<FileEntry>;
   getVaultName(): string;
   isOpen(): boolean;
+  readVaultMetadata(): Promise<string | null>;
+  writeVaultMetadata(content: string): Promise<void>;
 }
