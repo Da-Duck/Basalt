@@ -16,6 +16,8 @@ export interface FileSystemAdapter {
   createFolder(name: string, parentPath?: string): Promise<FileEntry>;
   deleteFile(path: string): Promise<void>;
   deleteFolder(path: string): Promise<void>;
+  renameFile(oldPath: string, newName: string): Promise<FileEntry>;
+  renameFolder(oldPath: string, newName: string): Promise<FileEntry>;
   moveEntry(oldPath: string, newParentPath: string): Promise<FileEntry>;
   getVaultName(): string;
   isOpen(): boolean;

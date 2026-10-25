@@ -204,6 +204,106 @@ export class WebFileAdapter implements FileSystemAdapter {
     }
   }
 
+  async renameFile(oldPath: string, newName: string): Promise<FileEntry> {
+    const handle = this.fileHandles.get(oldPath);
+    if (!handle) throw new Error(`Файл не найден: ${oldPath}`);
+
+    const parts = oldPath.split('/');
+    const oldFileName = parts.pop()!;
+    const parentPath = parts.join('/');
+    const cleanName = newName.trim().endsWith('.md') ? newName.trim() : `${newName.trim()}.md`;
+
+    if (cleanName === oldFileName) {
+      return {
+        name: cleanName,
+        path: oldPath,
+        isDirectory: false,
+      };
+    }
+
+    const newPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
+
+    let movedNative = false;
+    if (typeof (handle as any).move === 'function') {
+      try {
+        await (handle as any).move(cleanName);
+        movedNative = true;
+      } catch (e) {
+        movedNative = false;
+      }
+    }
+
+    if (!movedNative) {
+      const content = await this.readFile(oldPath);
+      await this.createFile(cleanName, content, parentPath);
+      await this.deleteFile(oldPath);
+    }
+
+    await this.refresh();
+    const newHandle = this.fileHandles.get(newPath);
+    const file = newHandle ? await newHandle.getFile() : undefined;
+
+    return {
+      name: cleanName,
+      path: newPath,
+      isDirectory: false,
+      size: file?.size,
+      lastModified: file?.lastModified,
+    };
+  }
+
+  async renameFolder(oldPath: string, newName: string): Promise<FileEntry> {
+    const handle = this.dirHandles.get(oldPath);
+    if (!handle) throw new Error(`Папка не найдена: ${oldPath}`);
+
+    const parts = oldPath.split('/');
+    const oldDirName = parts.pop()!;
+    const parentPath = parts.join('/');
+    const cleanName = newName.trim();
+
+    if (cleanName === oldDirName) {
+      return {
+        name: cleanName,
+        path: oldPath,
+        isDirectory: true,
+      };
+    }
+
+    const newPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
+
+    let movedNative = false;
+    if (typeof (handle as any).move === 'function') {
+      try {
+        await (handle as any).move(cleanName);
+        movedNative = true;
+      } catch (e) {
+        movedNative = false;
+      }
+    }
+
+    if (!movedNative) {
+      await this.createFolder(cleanName, parentPath);
+      const allFiles = Array.from(this.fileHandles.keys()).filter((p) => p.startsWith(`${oldPath}/`));
+      for (const fpath of allFiles) {
+        const subRel = fpath.slice(oldPath.length + 1);
+        const subParts = subRel.split('/');
+        const subFileName = subParts.pop()!;
+        const subParent = subParts.length > 0 ? `${newPath}/${subParts.join('/')}` : newPath;
+
+        const content = await this.readFile(fpath);
+        await this.createFile(subFileName, content, subParent);
+      }
+      await this.deleteFolder(oldPath);
+    }
+
+    await this.refresh();
+    return {
+      name: cleanName,
+      path: newPath,
+      isDirectory: true,
+    };
+  }
+
   async moveEntry(oldPath: string, newParentPath: string): Promise<FileEntry> {
     const isDir = this.dirHandles.has(oldPath);
     const parts = oldPath.split('/');

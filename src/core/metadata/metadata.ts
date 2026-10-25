@@ -9,11 +9,13 @@ export interface TrashItem {
 
 export interface BasaltMetadata {
   customIcons: Record<string, string>;
+  customColors: Record<string, string>;
   trash: TrashItem[];
 }
 
 const DEFAULT_METADATA: BasaltMetadata = {
   customIcons: {},
+  customColors: {},
   trash: [],
 };
 
@@ -28,7 +30,12 @@ class MetadataManager {
     try {
       const raw = localStorage.getItem('basalt-metadata');
       if (raw) {
-        return { ...DEFAULT_METADATA, ...JSON.parse(raw) };
+        const parsed = JSON.parse(raw);
+        return {
+          customIcons: parsed.customIcons || {},
+          customColors: parsed.customColors || {},
+          trash: parsed.trash || [],
+        };
       }
     } catch (e) {
       console.error('Ошибка чтения метаданных:', e);
@@ -56,6 +63,57 @@ class MetadataManager {
 
   public removeIcon(path: string) {
     delete this.data.customIcons[path];
+    this.save();
+  }
+
+  // === Цвета названий заметок ===
+  public setColor(path: string, color: string) {
+    this.data.customColors[path] = color;
+    this.save();
+  }
+
+  public getColor(path: string): string | null {
+    return this.data.customColors[path] || null;
+  }
+
+  public removeColor(path: string) {
+    delete this.data.customColors[path];
+    this.save();
+  }
+
+  // === Миграция путей при переименовании или перемещении ===
+  public migratePath(oldPath: string, newPath: string, isDirectory: boolean) {
+    if (!isDirectory) {
+      if (this.data.customIcons[oldPath]) {
+        this.data.customIcons[newPath] = this.data.customIcons[oldPath];
+        delete this.data.customIcons[oldPath];
+      }
+      if (this.data.customColors[oldPath]) {
+        this.data.customColors[newPath] = this.data.customColors[oldPath];
+        delete this.data.customColors[oldPath];
+      }
+    } else {
+      const oldPrefix = `${oldPath}/`;
+      const newPrefix = `${newPath}/`;
+
+      if (this.data.customIcons[oldPath]) {
+        this.data.customIcons[newPath] = this.data.customIcons[oldPath];
+        delete this.data.customIcons[oldPath];
+      }
+      for (const [k, v] of Object.entries(this.data.customIcons)) {
+        if (k.startsWith(oldPrefix)) {
+          delete this.data.customIcons[k];
+          this.data.customIcons[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
+        }
+      }
+
+      for (const [k, v] of Object.entries(this.data.customColors)) {
+        if (k.startsWith(oldPrefix)) {
+          delete this.data.customColors[k];
+          this.data.customColors[`${newPrefix}${k.slice(oldPrefix.length)}`] = v;
+        }
+      }
+    }
     this.save();
   }
 

@@ -21,6 +21,21 @@ interface TreeNode {
   fileEntry?: FileEntry;
 }
 
+const NOTE_COLOR_PALETTE = [
+  '#ef4444', // Красный
+  '#f97316', // Оранжевый
+  '#e5a93c', // Охровый
+  '#eab308', // Желтый
+  '#10b981', // Зеленый
+  '#06b6d4', // Бирюзовый
+  '#3b82f6', // Синий
+  '#8b5cf6', // Фиолетовый
+  '#ec4899', // Розовый
+  '#f43f5e', // Малиновый
+  '#ffffff', // Белый
+  '#94a3b8', // Серый
+];
+
 class BasaltApp {
   private adapter = new WebFileAdapter();
   private editor: BasaltEditor | null = null;
@@ -48,7 +63,7 @@ class BasaltApp {
   private sidebar = document.getElementById('sidebar') as HTMLElement;
   private editorMount = document.getElementById('editor-mount') as HTMLElement;
 
-  // Новые элементы: поиск, пространства, сворачивание
+  // Поиск, пространства, сворачивание
   private searchInput = document.getElementById('search-input') as HTMLInputElement;
   private btnClearSearch = document.getElementById('btn-clear-search') as HTMLButtonElement;
   private workspaceSelect = document.getElementById('workspace-select') as HTMLSelectElement;
@@ -67,12 +82,20 @@ class BasaltApp {
   private modalInfo = document.getElementById('modal-info') as HTMLElement;
   private infoGuideContent = document.getElementById('info-guide-content') as HTMLElement;
 
+  // Кнопка сохранения настроек
+  private btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement | null;
+
   // Настройки корзины и вкладки иконок
   private trashRetentionInput = document.getElementById('trash-retention-input') as HTMLInputElement;
   private tabBtnSvg = document.getElementById('tab-btn-svg') as HTMLButtonElement;
   private tabBtnEmoji = document.getElementById('tab-btn-emoji') as HTMLButtonElement;
   private panelSvgIcons = document.getElementById('panel-svg-icons') as HTMLElement;
   private panelEmojiIcons = document.getElementById('panel-emoji-icons') as HTMLElement;
+
+  // Выбор цвета названия заметки
+  private noteColorSection = document.getElementById('note-color-section') as HTMLElement | null;
+  private noteColorSwatches = document.getElementById('note-color-swatches') as HTMLElement | null;
+  private btnResetColor = document.getElementById('btn-reset-color') as HTMLButtonElement | null;
 
   constructor() {
     this.initEditor();
@@ -217,6 +240,7 @@ class BasaltApp {
         settingsManager.save({ language: lang });
         this.updateI18nLabels();
         this.renderFilteredTree();
+        this.updateWorkspacesDropdown();
         this.handleStatsChange(this.lastStats);
         if (this.modalInfo.style.display !== 'none') {
           this.openInfoModal();
@@ -236,6 +260,30 @@ class BasaltApp {
         }
       });
     }
+
+    // Кнопка подтверждения настроек: надежно применяет все параметры без перезагрузки страницы
+    this.btnSaveSettings?.addEventListener('click', () => {
+      const activeLangBtn = document.querySelector('.lang-btn.active');
+      const lang = (activeLangBtn?.getAttribute('data-lang') as Language) || settingsManager.get().language;
+      const rawRetention = parseInt(this.trashRetentionInput.value, 10);
+      const days = isNaN(rawRetention) || rawRetention < 0 ? 0 : rawRetention;
+
+      settingsManager.save({
+        language: lang,
+        trashRetentionDays: days,
+      });
+
+      metadataManager.purgeExpired(days);
+      this.updateI18nLabels();
+      this.renderFilteredTree();
+      this.updateWorkspacesDropdown();
+      this.updateTrashBadge();
+      this.handleStatsChange(this.lastStats);
+      this.updateActiveFileIcon();
+      this.updateActiveFileNameColor();
+
+      this.modalSettings.style.display = 'none';
+    });
 
     // Вкладки выбора иконок (Векторные значки / Эмодзи)
     this.tabBtnSvg?.addEventListener('click', () => {
@@ -269,7 +317,7 @@ class BasaltApp {
   private openSettingsModal() {
     const s = settingsManager.get();
 
-    // Обновляем пресет
+    // Пресет темы
     document.querySelectorAll('.preset-chip').forEach((c) => {
       c.classList.toggle('active', c.getAttribute('data-preset') === s.themePreset);
     });
@@ -330,9 +378,10 @@ class BasaltApp {
     trashItems.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'trash-card';
-      const createdStr = new Date(item.createdAt).toLocaleDateString();
-      const deletedStr = new Date(item.deletedAt).toLocaleDateString();
+      const createdStr = new Date(item.createdAt).toLocaleDateString(settingsManager.get().language);
+      const deletedStr = new Date(item.deletedAt).toLocaleDateString(settingsManager.get().language);
 
+      // В кнопке восстановления остается ТОЛЬКО стрелочка (символ без текста)
       card.innerHTML = `
         <div class="trash-card-info">
           <span class="trash-card-title">${item.name}</span>
@@ -344,7 +393,6 @@ class BasaltApp {
               <polyline points="1 4 1 10 7 10"></polyline>
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
             </svg>
-            <span>${t('restore')}</span>
           </button>
           <button class="btn-trash-action danger btn-delete-forever" title="${t('deletePermanently')}">
             <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -388,6 +436,44 @@ class BasaltApp {
 
     svgGrid.innerHTML = '';
     emojiGrid.innerHTML = '';
+
+    // Секция цвета названия: только для заметок (файлов)
+    if (this.noteColorSection) {
+      if (isDir) {
+        this.noteColorSection.style.display = 'none';
+      } else {
+        this.noteColorSection.style.display = 'block';
+        const swatchesEl = this.noteColorSwatches;
+        if (swatchesEl) {
+          swatchesEl.innerHTML = '';
+          const activeColor = metadataManager.getColor(path);
+
+          NOTE_COLOR_PALETTE.forEach((color) => {
+            const swatch = document.createElement('button');
+            swatch.className = `color-swatch-btn ${activeColor === color ? 'active' : ''}`;
+            swatch.style.backgroundColor = color;
+            swatch.title = color;
+            swatch.addEventListener('click', () => {
+              metadataManager.setColor(path, color);
+              swatchesEl.querySelectorAll('.color-swatch-btn').forEach((b) => b.classList.remove('active'));
+              swatch.classList.add('active');
+              this.renderFilteredTree();
+              this.updateActiveFileNameColor();
+            });
+            swatchesEl.appendChild(swatch);
+          });
+        }
+
+        if (this.btnResetColor) {
+          this.btnResetColor.onclick = () => {
+            metadataManager.removeColor(path);
+            this.noteColorSwatches?.querySelectorAll('.color-swatch-btn').forEach((b) => b.classList.remove('active'));
+            this.renderFilteredTree();
+            this.updateActiveFileNameColor();
+          };
+        }
+      }
+    }
 
     // Векторные иконки Flaticon Style
     Object.entries(FLATICON_SVGS).forEach(([id, svgPath]) => {
@@ -435,12 +521,23 @@ class BasaltApp {
     this.activeFileIcon.innerHTML = custom ? renderIconPreview(custom) : '📄';
   }
 
+  private updateActiveFileNameColor() {
+    if (!this.currentFile) {
+      this.activeFileName.style.color = '';
+      return;
+    }
+    const customColor = metadataManager.getColor(this.currentFile.path);
+    this.activeFileName.style.color = customColor || '';
+  }
+
   private updateTrashBadge() {
     const count = metadataManager.getTrash().length;
     this.trashBadgeCount.textContent = String(count);
   }
 
   private updateI18nLabels() {
+    document.documentElement.lang = settingsManager.get().language;
+
     document.getElementById('txt-vault-label')!.textContent = `${t('vault')}:`;
     if (!this.adapter.isOpen()) {
       this.vaultTitle.textContent = this.adapter.isSupported() ? t('notConnected') : t('browserNotSupported');
@@ -462,15 +559,22 @@ class BasaltApp {
     if (hint) {
       hint.textContent = settingsManager.get().trashRetentionDays === 0 ? t('infinity') : t('daysUnit');
     }
+    const btnSaveText = document.getElementById('txt-btn-save-settings');
+    if (btnSaveText) btnSaveText.textContent = t('applySettings');
 
     // Корзина
     document.getElementById('txt-trash-heading')!.textContent = t('trashTitle');
 
-    // Выбор иконки
-    document.getElementById('txt-icon-picker-heading')!.textContent = t('chooseIconTitle');
+    // Выбор иконки или цвета
+    document.getElementById('txt-icon-picker-heading')!.textContent = t('chooseIconOrColorTitle');
     document.getElementById('tab-btn-svg')!.textContent = t('tabSvgIcons');
     document.getElementById('tab-btn-emoji')!.textContent = t('tabEmojis');
     document.getElementById('txt-btn-reset-icon')!.textContent = t('resetIconDefault');
+
+    const noteColorLabel = document.getElementById('txt-note-color-label');
+    if (noteColorLabel) noteColorLabel.textContent = `${t('noteTitleColor')}:`;
+    const btnResetColorText = document.getElementById('txt-btn-reset-color');
+    if (btnResetColorText) btnResetColorText.textContent = t('defaultColor');
 
     // Справка
     document.getElementById('txt-info-heading')!.textContent = t('infoTitle');
@@ -686,13 +790,14 @@ class BasaltApp {
 
         const iconHtml = customIcon ? renderIconPreview(customIcon) : (isCollapsed ? '📁' : '📂');
 
+        // В строке папки 4 действия: новый файл, новая папка, переименовать, удалить
         row.innerHTML = `
           <span class="folder-chevron ${isCollapsed ? '' : 'open'}" title="${isCollapsed ? t('expandSidebar') : t('collapseSidebar')}">
             <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </span>
-          <span class="item-icon-wrapper" data-tooltip="${t('changeIcon')}" title="${t('changeIcon')}">
+          <span class="item-icon-wrapper" title="${t('changeIconOrColor')}">
             <span class="folder-icon">${iconHtml}</span>
           </span>
           <span class="folder-name" title="${node.path}">${node.name}</span>
@@ -708,6 +813,12 @@ class BasaltApp {
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 <line x1="12" y1="11" x2="12" y2="17"></line>
                 <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+            </button>
+            <button class="folder-act-btn btn-folder-rename" title="${t('renameFolder')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
             </button>
             <button class="folder-act-btn danger btn-folder-delete" title="${t('deleteFolder')}">
@@ -731,14 +842,14 @@ class BasaltApp {
           this.renderFilteredTree();
         });
 
-        // Клик по иконке открывает Icon Picker
+        // Клик по иконке открывает Icon/Color Picker
         const iconWrapper = row.querySelector('.item-icon-wrapper');
         iconWrapper?.addEventListener('click', (e) => {
           e.stopPropagation();
           this.openIconPicker(node.path, true);
         });
 
-        // 3 Действия папки
+        // 4 Действия папки
         const btnNewFile = row.querySelector('.btn-folder-new-file');
         btnNewFile?.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -749,6 +860,12 @@ class BasaltApp {
         btnNewSub?.addEventListener('click', (e) => {
           e.stopPropagation();
           this.handleCreateNewFolderIn(node.path);
+        });
+
+        const btnRenameDir = row.querySelector('.btn-folder-rename');
+        btnRenameDir?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleRenameFolder(node);
         });
 
         const btnDeleteDir = row.querySelector('.btn-folder-delete');
@@ -782,35 +899,53 @@ class BasaltApp {
         fileEl.draggable = true;
 
         const iconHtml = customIcon ? renderIconPreview(customIcon) : '📄';
+        const customColor = metadataManager.getColor(node.path);
+        const colorStyle = customColor ? `style="color: ${customColor};"` : '';
 
+        // В строке заметки: переименовать и удалить в корзину
         fileEl.innerHTML = `
-          <span class="item-icon-wrapper" data-tooltip="${t('changeIcon')}" title="${t('changeIcon')}">
+          <span class="item-icon-wrapper" title="${t('changeIconOrColor')}">
             <span class="file-item-icon">${iconHtml}</span>
           </span>
-          <span class="file-item-name" title="${node.path}">${node.name}</span>
-          <button class="file-item-delete" title="${t('trash')}">
-            <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
+          <span class="file-item-name" title="${node.path}" ${colorStyle}>${node.name}</span>
+          <div class="file-actions">
+            <button class="file-act-btn btn-file-rename" title="${t('renameNote')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button class="file-act-btn danger btn-file-delete" title="${t('trash')}">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
         `;
 
-        // Клик по иконке файла открывает Icon Picker
+        // Клик по иконке файла открывает Icon/Color Picker
         const iconWrapper = fileEl.querySelector('.item-icon-wrapper');
         iconWrapper?.addEventListener('click', (e) => {
           e.stopPropagation();
           this.openIconPicker(node.path, false);
         });
 
-        // Драг-энд-дроп для файла
-        this.bindDragAndDrop(fileEl, node.path, false);
+        // Переименование файла
+        const btnRename = fileEl.querySelector('.btn-file-rename');
+        btnRename?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleRenameFile(node);
+        });
 
         // Удаление файла в корзину
-        fileEl.querySelector('.file-item-delete')?.addEventListener('click', async (e) => {
+        fileEl.querySelector('.btn-file-delete')?.addEventListener('click', async (e) => {
           e.stopPropagation();
           await this.handleDeleteFile(node);
         });
+
+        // Драг-энд-дроп для файла
+        this.bindDragAndDrop(fileEl, node.path, false);
 
         fileEl.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -865,7 +1000,8 @@ class BasaltApp {
 
         try {
           this.setSaveStatus(t('saveStatusSaving'), true);
-          await this.adapter.moveEntry(sourcePath, path);
+          const movedEntry = await this.adapter.moveEntry(sourcePath, path);
+          metadataManager.migratePath(sourcePath, movedEntry.path, this.adapter.isOpen());
           this.allEntries = await this.adapter.refresh();
           this.renderFilteredTree();
           this.setSaveStatus(t('saveStatusSaved'), false);
@@ -887,6 +1023,7 @@ class BasaltApp {
       this.currentFile = file;
       this.activeFileName.textContent = file.name;
       this.updateActiveFileIcon();
+      this.updateActiveFileNameColor();
 
       const text = await this.adapter.readFile(file.path);
       if (this.editor) {
@@ -1024,6 +1161,66 @@ class BasaltApp {
     }
   }
 
+  private async handleRenameFolder(node: TreeNode) {
+    const newName = prompt(t('promptRenameFolder'), node.name);
+    if (!newName || !newName.trim() || newName.trim() === node.name) return;
+
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      const res = await this.adapter.renameFolder(node.path, newName.trim());
+      metadataManager.migratePath(node.path, res.path, true);
+
+      if (this.selectedFolder === node.path) {
+        this.selectedFolder = res.path;
+      } else if (this.selectedFolder.startsWith(`${node.path}/`)) {
+        this.selectedFolder = `${res.path}${this.selectedFolder.slice(node.path.length)}`;
+      }
+
+      if (this.collapsedFolders.has(node.path)) {
+        this.collapsedFolders.delete(node.path);
+        this.collapsedFolders.add(res.path);
+      }
+
+      this.allEntries = await this.adapter.refresh();
+      this.updateWorkspacesDropdown();
+      this.renderFilteredTree();
+      this.setSaveStatus(t('saveStatusReady'), false);
+    } catch (err: any) {
+      console.error(t('errorCreateFolder'), err);
+      alert(`${t('errorCreateFolder')}: ${err.message}`);
+      this.setSaveStatus(t('saveStatusError'), false);
+    }
+  }
+
+  private async handleRenameFile(node: TreeNode) {
+    const rawBaseName = node.name.replace(/\.md$/, '');
+    const newName = prompt(t('promptRenameNote'), rawBaseName);
+    if (!newName || !newName.trim()) return;
+
+    const cleanWithExt = newName.trim().endsWith('.md') ? newName.trim() : `${newName.trim()}.md`;
+    if (cleanWithExt === node.name) return;
+
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      const res = await this.adapter.renameFile(node.path, cleanWithExt);
+      metadataManager.migratePath(node.path, res.path, false);
+
+      if (this.currentFile?.path === node.path) {
+        this.currentFile = res;
+        this.activeFileName.textContent = res.name;
+        this.updateActiveFileNameColor();
+      }
+
+      this.allEntries = await this.adapter.refresh();
+      this.renderFilteredTree();
+      this.setSaveStatus(t('saveStatusSaved'), false);
+    } catch (err: any) {
+      console.error(t('errorCreateFile'), err);
+      alert(`${t('errorCreateFile')}: ${err.message}`);
+      this.setSaveStatus(t('saveStatusError'), false);
+    }
+  }
+
   private async handleDeleteFolder(node: TreeNode) {
     if (!confirm(t('confirmDeleteFolder', { name: node.name }))) {
       return;
@@ -1041,6 +1238,7 @@ class BasaltApp {
         this.currentFile = null;
         this.activeFileName.textContent = '';
         this.activeFileIcon.textContent = '📄';
+        this.activeFileName.style.color = '';
         this.editor?.setContent('');
       }
 
@@ -1078,6 +1276,7 @@ class BasaltApp {
         this.currentFile = null;
         this.activeFileName.textContent = '';
         this.activeFileIcon.textContent = '📄';
+        this.activeFileName.style.color = '';
         this.editor?.setContent('');
       }
 

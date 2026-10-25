@@ -236,19 +236,38 @@
             </div>
           </div>
         </div>
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="btn btn-primary">
+            <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span id="txt-btn-save-settings">Применить настройки</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- ==========================================================================
-         МОДАЛЬНОЕ ОКНО: ВЫБОР ИКОНКИ (FLATICON / EMOJI)
+         МОДАЛЬНОЕ ОКНО: ВЫБОР ИКОНКИ И ЦВЕТА
          ========================================================================== -->
     <div id="modal-icon-picker" class="modal-backdrop" style="display: none;">
       <div class="modal-window modal-sm">
         <div class="modal-header">
-          <h3 id="txt-icon-picker-heading">Выберите иконку</h3>
+          <h3 id="txt-icon-picker-heading">Выберите иконку или цвет</h3>
           <button class="modal-close-btn" data-close="modal-icon-picker">✕</button>
         </div>
         <div class="modal-body">
+          <!-- Секция выбора цвета названия (только для заметок) -->
+          <div class="note-color-section" id="note-color-section" style="display: none;">
+            <div class="note-color-header">
+              <span class="note-color-title" id="txt-note-color-label">Цвет названия заметки:</span>
+              <button id="btn-reset-color" class="color-reset-link" title="Сбросить цвет">
+                <span id="txt-btn-reset-color">По умолчанию</span>
+              </button>
+            </div>
+            <div class="note-color-swatches" id="note-color-swatches"></div>
+          </div>
+
           <!-- Вкладки категорий иконок -->
           <div class="icon-tabs-nav">
             <button class="icon-tab-btn active" id="tab-btn-svg" data-tab="svg">Векторные значки</button>
