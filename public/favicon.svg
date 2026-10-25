@@ -1,62 +1,77 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
   <defs>
-    <linearGradient id="fav-apex" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fef08a" />
-      <stop offset="50%" stop-color="#f59e0b" />
+    <!-- Градиенты сияющей охры -->
+    <linearGradient id="fav-apex" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" />
+      <stop offset="25%" stop-color="#fef08a" />
+      <stop offset="60%" stop-color="#f59e0b" />
       <stop offset="100%" stop-color="#d97706" />
     </linearGradient>
     <linearGradient id="fav-ochre" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#fbbf24" />
-      <stop offset="50%" stop-color="#e5a93c" />
+      <stop offset="45%" stop-color="#e5a93c" />
       <stop offset="100%" stop-color="#b45309" />
     </linearGradient>
     <linearGradient id="fav-dark-ochre" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#d97706" />
+      <stop offset="60%" stop-color="#92400e" />
       <stop offset="100%" stop-color="#78350f" />
     </linearGradient>
+
+    <!-- Градиенты темного базальта (контрастные на чистом черном) -->
     <linearGradient id="fav-basalt-light" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3d465c" />
-      <stop offset="100%" stop-color="#232836" />
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#2d3748" />
     </linearGradient>
     <linearGradient id="fav-basalt-mid" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#262c3b" />
-      <stop offset="100%" stop-color="#181c25" />
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#1e293b" />
     </linearGradient>
     <linearGradient id="fav-basalt-dark" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#141720" />
-      <stop offset="100%" stop-color="#090b0e" />
+      <stop offset="0%" stop-color="#1e2530" />
+      <stop offset="100%" stop-color="#12151c" />
+    </linearGradient>
+    <linearGradient id="fav-basalt-core" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2016" />
+      <stop offset="100%" stop-color="#16120e" />
     </linearGradient>
   </defs>
 
-  <!-- Скругленный фон фавиконки в стиле современных систем -->
-  <rect width="32" height="32" rx="7" fill="#0d0f14" />
-  <rect width="32" height="32" rx="7" stroke="rgba(229, 169, 60, 0.25)" stroke-width="1" />
+  <!-- Чисто чёрный фон (#000000) -->
+  <rect width="32" height="32" rx="7" fill="#000000" />
 
-  <!-- Грани кристалла Базальта (масштабировано под сетку 32x32) -->
-  <!-- 1. Верхний левый скол -->
-  <polygon points="16,4 15.7,12.5 9.8,9" fill="url(#fav-basalt-light)" />
+  <!-- Грани кристалла базальта -->
+  <!-- 1. Верхний левый базальтовый скол -->
+  <polygon points="16,3.5 15.7,12.2 9.5,8.8" fill="url(#fav-basalt-light)" />
 
   <!-- 2. Золотистый верхний пик -->
-  <polygon points="16,4 24,10 15.7,12.5" fill="url(#fav-apex)" />
+  <polygon points="16,3.5 24.2,9.8 15.7,12.2" fill="url(#fav-apex)" />
 
   <!-- 3. Основная охровая грань -->
-  <polygon points="15.7,12.5 24,10 26.2,18 17.8,19.5" fill="url(#fav-ochre)" />
+  <polygon points="15.7,12.2 24.2,9.8 26.5,18.2 17.8,19.6" fill="url(#fav-ochre)" />
 
   <!-- 4. Нижняя охровая грань -->
-  <polygon points="17.8,19.5 26.2,18 21.8,26 16.2,29.5" fill="url(#fav-dark-ochre)" />
+  <polygon points="17.8,19.6 26.5,18.2 22,26.2 16.2,29.8" fill="url(#fav-dark-ochre)" />
 
-  <!-- 5. Нижняя левая теневая грань -->
-  <polygon points="14,22.2 16.2,29.5 8.5,24.2" fill="url(#fav-basalt-dark)" />
+  <!-- 5. Нижняя центральная переходная грань -->
+  <polygon points="17.8,19.6 16.2,29.8 13.8,22.4" fill="url(#fav-basalt-core)" />
 
-  <!-- 6. Боковой базальт -->
-  <polygon points="14,22.2 8.5,24.2 6.8,16.5" fill="url(#fav-basalt-dark)" />
+  <!-- 6. Нижняя левая теневая грань -->
+  <polygon points="13.8,22.4 16.2,29.8 8.4,24.4" fill="url(#fav-basalt-dark)" />
 
-  <!-- 7. Центральная базальтовая колонна -->
-  <polygon points="15.7,12.5 17.8,19.5 14,22.2 6.8,16.5 9.8,9" fill="url(#fav-basalt-mid)" />
+  <!-- 7. Боковой левый скол -->
+  <polygon points="13.8,22.4 8.4,24.4 6.6,16.5" fill="url(#fav-basalt-dark)" />
 
-  <!-- Ребра кристалла -->
-  <line x1="16" y1="4" x2="15.7" y2="12.5" stroke="#fef08a" stroke-width="0.8" stroke-linecap="round" opacity="0.9" />
-  <line x1="15.7" y1="12.5" x2="17.8" y2="19.5" stroke="#fde68a" stroke-width="0.8" stroke-linecap="round" opacity="0.8" />
-  <line x1="15.7" y1="12.5" x2="24" y2="10" stroke="#ffffff" stroke-width="0.7" stroke-linecap="round" opacity="0.7" />
-  <line x1="17.8" y1="19.5" x2="16.2" y2="29.5" stroke="#d97706" stroke-width="0.7" stroke-linecap="round" opacity="0.7" />
+  <!-- 8. Средний левый скол -->
+  <polygon points="9.5,8.8 13.8,22.4 6.6,16.5" fill="url(#fav-basalt-mid)" />
+
+  <!-- 9. Центральная базальтовая колонна -->
+  <polygon points="15.7,12.2 17.8,19.6 13.8,22.4 9.5,8.8" fill="url(#fav-basalt-mid)" />
+
+  <!-- Ребра кристалла и световые акценты -->
+  <line x1="16" y1="3.5" x2="15.7" y2="12.2" stroke="#fffbeb" stroke-width="0.9" stroke-linecap="round" opacity="0.95" />
+  <line x1="15.7" y1="12.2" x2="17.8" y2="19.6" stroke="#fef08a" stroke-width="0.9" stroke-linecap="round" opacity="0.9" />
+  <line x1="17.8" y1="19.6" x2="16.2" y2="29.8" stroke="#d97706" stroke-width="0.8" stroke-linecap="round" opacity="0.8" />
+  <line x1="15.7" y1="12.2" x2="24.2" y2="9.8" stroke="#ffffff" stroke-width="0.8" stroke-linecap="round" opacity="0.85" />
+  <line x1="17.8" y1="19.6" x2="26.5" y2="18.2" stroke="#fbbf24" stroke-width="0.7" stroke-linecap="round" opacity="0.6" />
 </svg>
