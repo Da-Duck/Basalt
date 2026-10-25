@@ -261,7 +261,7 @@ class BasaltApp {
       });
     }
 
-    // Кнопка подтверждения настроек: надежно применяет все параметры без перезагрузки страницы
+    // Кнопка подтверждения настроек: сохраняет параметры и перезагружает страницу
     this.btnSaveSettings?.addEventListener('click', () => {
       const activeLangBtn = document.querySelector('.lang-btn.active');
       const lang = (activeLangBtn?.getAttribute('data-lang') as Language) || settingsManager.get().language;
@@ -274,15 +274,9 @@ class BasaltApp {
       });
 
       metadataManager.purgeExpired(days);
-      this.updateI18nLabels();
-      this.renderFilteredTree();
-      this.updateWorkspacesDropdown();
-      this.updateTrashBadge();
-      this.handleStatsChange(this.lastStats);
-      this.updateActiveFileIcon();
-      this.updateActiveFileNameColor();
 
-      this.modalSettings.style.display = 'none';
+      // Перезагружаем страницу для полного чистого обновления всего состояния
+      window.location.reload();
     });
 
     // Вкладки выбора иконок (Векторные значки / Эмодзи)
