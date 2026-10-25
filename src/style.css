@@ -157,7 +157,25 @@ body {
 }
 
 .brand-icon {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.brand-logo-img {
+  width: 24px;
+  height: 24px;
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(229, 169, 60, 0.35));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.brand:hover .brand-logo-img {
+  transform: scale(1.08);
+  filter: drop-shadow(0 3px 12px rgba(229, 169, 60, 0.55));
 }
 
 .brand-text {
