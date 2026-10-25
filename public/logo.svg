@@ -49,18 +49,7 @@
       <stop offset="0%" stop-color="#151821" />
       <stop offset="100%" stop-color="#090b0e" />
     </linearGradient>
-
-    <!-- Мягкое золотистое свечение -->
-    <filter id="basalt-glow" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="16" result="blur" />
-      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.18 0" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
-
-  <!-- Рассеянное свечение кристалла -->
-  <path d="M128 22 L194 70 L212 138 L176 202 L130 236 L68 190 L54 126 L78 62 Z"
-        fill="#e5a93c" opacity="0.12" filter="url(#basalt-glow)" />
 
   <!-- Грани кристалла базальта (Геометрия монолита) -->
   <!-- 1. Верхний левый скол (Базальт на свету) -->
