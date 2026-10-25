@@ -11,6 +11,7 @@ import type { Extension } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { basaltTheme } from './theme';
+import { SlashMenu } from './slashMenu';
 
 export interface EditorCallbacks {
   onChange?: (content: string) => void;
@@ -31,6 +32,7 @@ export class BasaltEditor {
   private changeTimeout: number | null = null;
   private container: HTMLElement;
   private callbacks: EditorCallbacks;
+  private slashMenu: SlashMenu | null = null;
 
   constructor(
     container: HTMLElement,
@@ -80,6 +82,13 @@ export class BasaltEditor {
 
     const domHandlers = EditorView.domEventHandlers({
       keydown: (event, view) => {
+        // Перехват навигации и выполнения в слэш-меню Notion
+        if (this.slashMenu && this.slashMenu.isOpen()) {
+          if (this.slashMenu.handleKeyDown(event)) {
+            return true;
+          }
+        }
+
         const isMod = event.ctrlKey || event.metaKey;
         if (!isMod) return false;
 
@@ -172,11 +181,14 @@ export class BasaltEditor {
           this.handleDocChange(content);
           this.updateStats(content);
         }
+        if (this.slashMenu && this.view) {
+          this.slashMenu.handleEditorUpdate(update, this.view);
+        }
       }),
     ];
 
     const state = EditorState.create({
-      doc: '# Добро пожаловать в Basalt\n\nЭто ваша первая заметка на базе Markdown.\n\n### Возможности прототипа:\n- 🚀 Мгновенная работа в браузере через File System Access API\n- 📝 Чистый нативный Markdown\n- 💾 Автоматическое сохранение правок на ваш диск\n- 🔗 Ссылки на другие заметки через `[[Название заметки]]`\n',
+      doc: '# Добро пожаловать в Basalt\n\nЭто ваша первая заметка на базе Markdown.\n\n### Возможности:\n- Мгновенная работа в браузере через File System Access API\n- Чистый нативный Markdown без закрытых баз данных\n- Автоматическое сохранение правок на ваш диск\n- Ссылки на другие заметки через `[[Название заметки]]`\n- Меню быстрых блоков по нажатию `/` (как в Notion)\n',
       extensions,
     });
 
@@ -184,6 +196,8 @@ export class BasaltEditor {
       state,
       parent: this.container,
     });
+
+    this.slashMenu = new SlashMenu(this);
 
     this.updateStats(this.getContent());
   }
@@ -264,9 +278,28 @@ export class BasaltEditor {
     }
   }
 
+  /**
+   * Замена диапазона текста (например, /команда) на сниппет разметки
+   * с перемещением курсора на заданную позицию
+   */
+  dispatchSnippet(from: number, to: number, snippet: string, cursorOffset: number = snippet.length) {
+    if (!this.view) return;
+
+    this.view.dispatch({
+      changes: { from, to, insert: snippet },
+      selection: { anchor: from + cursorOffset },
+      scrollIntoView: true,
+    });
+    this.view.focus();
+  }
+
   destroy() {
     if (this.changeTimeout !== null) {
       window.clearTimeout(this.changeTimeout);
+    }
+    if (this.slashMenu) {
+      this.slashMenu.destroy();
+      this.slashMenu = null;
     }
     if (this.view) {
       this.view.destroy();

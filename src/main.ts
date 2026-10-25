@@ -12,7 +12,13 @@ import {
 } from './core/i18n/i18n';
 import { settingsManager, type ThemePreset } from './core/settings/settings';
 import { metadataManager } from './core/metadata/metadata';
-import { FLATICON_SVGS, EMOJI_LIST, renderIconPreview } from './core/icons/icons';
+import {
+  FLATICON_SVGS,
+  EMOJI_LIST,
+  renderIconPreview,
+  renderDefaultFileIcon,
+  renderDefaultFolderIcon,
+} from './core/icons/icons';
 import { getMarkdownGuideHtml } from './core/guide/markdownGuide';
 import { MarkdownRenderer } from './core/markdown/markdownRenderer';
 
@@ -649,11 +655,11 @@ class BasaltApp {
 
   private updateActiveFileIcon() {
     if (!this.currentFile) {
-      this.activeFileIcon.textContent = '📄';
+      this.activeFileIcon.innerHTML = renderDefaultFileIcon();
       return;
     }
     const custom = metadataManager.getIcon(this.currentFile.path);
-    this.activeFileIcon.innerHTML = custom ? renderIconPreview(custom) : '📄';
+    this.activeFileIcon.innerHTML = custom ? renderIconPreview(custom) : renderDefaultFileIcon();
   }
 
   private updateActiveFileNameColor() {
@@ -857,7 +863,7 @@ class BasaltApp {
     topDirs.forEach((dir) => {
       const opt = document.createElement('option');
       opt.value = dir.path;
-      opt.textContent = `📁 ${dir.name}`;
+      opt.textContent = dir.name;
       this.workspaceSelect.appendChild(opt);
     });
 
@@ -976,7 +982,7 @@ class BasaltApp {
         row.className = `folder-row ${isSelected ? 'selected' : ''}`;
         row.draggable = true;
 
-        const iconHtml = customIcon ? renderIconPreview(customIcon) : (isCollapsed ? '📁' : '📂');
+        const iconHtml = customIcon ? renderIconPreview(customIcon) : renderDefaultFolderIcon(isCollapsed);
 
         // В строке папки 4 действия: новый файл, новая папка, переименовать, удалить
         row.innerHTML = `
@@ -1086,7 +1092,7 @@ class BasaltApp {
         fileEl.className = `file-item ${isActive ? 'active' : ''}`;
         fileEl.draggable = true;
 
-        const iconHtml = customIcon ? renderIconPreview(customIcon) : '📄';
+        const iconHtml = customIcon ? renderIconPreview(customIcon) : renderDefaultFileIcon();
         const customColor = metadataManager.getColor(node.path);
         const colorStyle = customColor ? `style="color: ${customColor};"` : '';
 
@@ -1383,7 +1389,7 @@ class BasaltApp {
       if (this.currentFile && (this.currentFile.path === node.path || this.currentFile.path.startsWith(`${node.path}/`))) {
         this.currentFile = null;
         this.activeFileName.textContent = '';
-        this.activeFileIcon.textContent = '📄';
+        this.activeFileIcon.innerHTML = renderDefaultFileIcon();
         this.activeFileName.style.color = '';
         this.editor?.setContent('');
         this.updatePreview('');
@@ -1422,7 +1428,7 @@ class BasaltApp {
       if (this.currentFile?.path === node.path) {
         this.currentFile = null;
         this.activeFileName.textContent = '';
-        this.activeFileIcon.textContent = '📄';
+        this.activeFileIcon.innerHTML = renderDefaultFileIcon();
         this.activeFileName.style.color = '';
         this.editor?.setContent('');
         this.updatePreview('');
