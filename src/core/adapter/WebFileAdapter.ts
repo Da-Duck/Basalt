@@ -3,6 +3,7 @@ import type { FileEntry, FileSystemAdapter } from './FileSystemAdapter';
 export class WebFileAdapter implements FileSystemAdapter {
   private dirHandle: FileSystemDirectoryHandle | null = null;
   private fileHandles = new Map<string, FileSystemFileHandle>();
+  private dirHandles = new Map<string, FileSystemDirectoryHandle>();
 
   isSupported(): boolean {
     return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
@@ -22,20 +23,28 @@ export class WebFileAdapter implements FileSystemAdapter {
     }
 
     try {
-      // Запрос доступа к папке на диске
       this.dirHandle = await (window as any).showDirectoryPicker({
         mode: 'readwrite',
       });
       this.fileHandles.clear();
+      this.dirHandles.clear();
+      this.dirHandles.set('', this.dirHandle!);
 
       return await this.scanDirectory(this.dirHandle!, '');
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        // Пользователь отменил выбор папки
         return [];
       }
       throw err;
     }
+  }
+
+  async refresh(): Promise<FileEntry[]> {
+    if (!this.dirHandle) return [];
+    this.fileHandles.clear();
+    this.dirHandles.clear();
+    this.dirHandles.set('', this.dirHandle);
+    return await this.scanDirectory(this.dirHandle, '');
   }
 
   private async scanDirectory(
@@ -44,12 +53,10 @@ export class WebFileAdapter implements FileSystemAdapter {
   ): Promise<FileEntry[]> {
     const entries: FileEntry[] = [];
 
-    // Читаем все элементы в папке
     for await (const entry of (dirHandle as any).values()) {
       const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
 
       if (entry.kind === 'file') {
-        // Фокусируемся на Markdown-файлах и текстовых заметках
         if (entry.name.endsWith('.md') || entry.name.endsWith('.txt')) {
           const fileHandle = entry as FileSystemFileHandle;
           this.fileHandles.set(entryPath, fileHandle);
@@ -64,27 +71,23 @@ export class WebFileAdapter implements FileSystemAdapter {
           });
         }
       } else if (entry.kind === 'directory') {
-        // Игнорируем служебные папки (например .git, .obsidian, node_modules)
         if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          const subDirHandle = entry as FileSystemDirectoryHandle;
+          this.dirHandles.set(entryPath, subDirHandle);
+
           entries.push({
             name: entry.name,
             path: entryPath,
             isDirectory: true,
           });
 
-          const subEntries = await this.scanDirectory(entry as FileSystemDirectoryHandle, entryPath);
+          const subEntries = await this.scanDirectory(subDirHandle, entryPath);
           entries.push(...subEntries);
         }
       }
     }
 
-    // Сортировка: сначала папки, затем файлы по алфавиту
-    return entries.sort((a, b) => {
-      if (a.isDirectory !== b.isDirectory) {
-        return a.isDirectory ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-    });
+    return entries;
   }
 
   async readFile(path: string): Promise<string> {
@@ -108,14 +111,25 @@ export class WebFileAdapter implements FileSystemAdapter {
     await writable.close();
   }
 
-  async createFile(name: string, initialContent: string = '# Новая заметка\n\n'): Promise<FileEntry> {
+  async createFile(
+    name: string,
+    initialContent: string = '# Новая заметка\n\n',
+    parentPath: string = ''
+  ): Promise<FileEntry> {
     if (!this.dirHandle) {
       throw new Error('Хранилище не открыто.');
     }
 
+    const targetDir = parentPath ? this.dirHandles.get(parentPath) : this.dirHandle;
+    if (!targetDir) {
+      throw new Error(`Целевая папка не найдена: ${parentPath}`);
+    }
+
     const filename = name.endsWith('.md') ? name : `${name}.md`;
-    const handle = await this.dirHandle.getFileHandle(filename, { create: true });
-    this.fileHandles.set(filename, handle);
+    const handle = await targetDir.getFileHandle(filename, { create: true });
+    const fullPath = parentPath ? `${parentPath}/${filename}` : filename;
+
+    this.fileHandles.set(fullPath, handle);
 
     const writable = await (handle as any).createWritable();
     await writable.write(initialContent);
@@ -124,10 +138,33 @@ export class WebFileAdapter implements FileSystemAdapter {
     const file = await handle.getFile();
     return {
       name: filename,
-      path: filename,
+      path: fullPath,
       isDirectory: false,
       size: file.size,
       lastModified: file.lastModified,
+    };
+  }
+
+  async createFolder(name: string, parentPath: string = ''): Promise<FileEntry> {
+    if (!this.dirHandle) {
+      throw new Error('Хранилище не открыто.');
+    }
+
+    const targetDir = parentPath ? this.dirHandles.get(parentPath) : this.dirHandle;
+    if (!targetDir) {
+      throw new Error(`Целевая папка не найдена: ${parentPath}`);
+    }
+
+    const folderName = name.trim();
+    const handle = await targetDir.getDirectoryHandle(folderName, { create: true });
+    const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+
+    this.dirHandles.set(fullPath, handle);
+
+    return {
+      name: folderName,
+      path: fullPath,
+      isDirectory: true,
     };
   }
 }

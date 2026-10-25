@@ -9,7 +9,7 @@
   </head>
   <body>
     <div id="app" class="basalt-layout">
-      <!-- Боковая панель (Хранилище и список заметок) -->
+      <!-- Боковая панель (Хранилище, папки и заметки) -->
       <aside class="basalt-sidebar" id="sidebar">
         <div class="sidebar-header">
           <div class="brand">
@@ -35,18 +35,27 @@
         </div>
 
         <div class="files-header">
-          <span class="section-title">Заметки</span>
-          <button id="btn-new-note" class="icon-btn" title="Создать новую заметку" disabled>
-            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
+          <span class="section-title">Файлы & Папки</span>
+          <div class="header-actions">
+            <button id="btn-new-folder" class="icon-btn" title="Создать новую папку" disabled>
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+            </button>
+            <button id="btn-new-note" class="icon-btn" title="Создать новую заметку" disabled>
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="file-list-container" id="file-list">
           <div class="sidebar-empty">
-            <p>Откройте папку на вашем ПК, чтобы просматривать и редактировать заметки</p>
+            <p>Откройте папку на вашем ПК, чтобы просматривать структуру и редактировать заметки</p>
           </div>
         </div>
 

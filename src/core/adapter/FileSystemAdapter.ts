@@ -11,7 +11,8 @@ export interface FileSystemAdapter {
   openVault(): Promise<FileEntry[]>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
-  createFile(name: string, initialContent?: string): Promise<FileEntry>;
+  createFile(name: string, initialContent?: string, parentPath?: string): Promise<FileEntry>;
+  createFolder(name: string, parentPath?: string): Promise<FileEntry>;
   getVaultName(): string;
   isOpen(): boolean;
 }
