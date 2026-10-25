@@ -100,6 +100,8 @@ export function getMarkdownGuideHtml(lang: Language): string {
           <h4>11. Keyboard Shortcuts</h4>
           <div class="guide-code-box">
             <code><strong>/</strong> : Open Slash Commands menu<br/>
+            <strong>Ctrl + Up / Down</strong> : Navigate folders and notes in sidebar<br/>
+            <strong>Ctrl + Enter</strong> : Toggle folder or open note<br/>
             <strong>Ctrl + S</strong> : Instant manual save<br/>
             <strong>Ctrl + Z</strong> : Undo last change<br/>
             <strong>Ctrl + Y</strong> / <strong>Ctrl + Shift + Z</strong> : Redo change</code>
@@ -205,9 +207,11 @@ export function getMarkdownGuideHtml(lang: Language): string {
       </section>
 
       <section class="guide-section">
-        <h4>11. Горячие клавиши редактора</h4>
+        <h4>11. Горячие клавиши</h4>
         <div class="guide-code-box">
           <code><strong>/</strong> : Открыть меню быстрых блоков<br/>
+          <strong>Ctrl + Стрелка вверх / вниз</strong> : Переключение между папками и заметками слева<br/>
+          <strong>Ctrl + Enter</strong> : Открыть/закрыть папку или зайти в заметку<br/>
           <strong>Ctrl + S</strong> : Принудительное сохранение<br/>
           <strong>Ctrl + Z</strong> : Отменить действие (Undo)<br/>
           <strong>Ctrl + Y</strong> / <strong>Ctrl + Shift + Z</strong> : Повторить действие (Redo)</code>

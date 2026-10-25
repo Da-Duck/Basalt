@@ -57,6 +57,7 @@ class BasaltApp {
   private lastStats: EditorStats = { words: 0, chars: 0, lines: 0 };
   private currentViewMode: 'edit' | 'split' | 'preview' =
     (localStorage.getItem('basalt-view-mode') as 'edit' | 'split' | 'preview') || 'split';
+  private treeFocusedPath: string | null = null;
 
   // DOM Элементы
   private btnOpenVault = document.getElementById('btn-open-vault') as HTMLButtonElement;
@@ -233,6 +234,28 @@ class BasaltApp {
     this.btnOpenTrash.addEventListener('click', () => this.openTrashModal());
     this.btnOpenSettings.addEventListener('click', () => this.openSettingsModal());
     this.btnOpenInfo.addEventListener('click', () => this.openInfoModal());
+
+    // Глобальные горячие клавиши: Ctrl + ArrowUp/ArrowDown (навигация по дереву) и Ctrl + Enter (открыть/закрыть)
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        const isMod = e.ctrlKey || e.metaKey;
+        if (!isMod) return;
+
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          if (this.isAnyModalOpen()) return;
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleTreeNavigate(e.key === 'ArrowUp' ? 'up' : 'down');
+        } else if (e.key === 'Enter') {
+          if (this.isAnyModalOpen()) return;
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleTreeActivate();
+        }
+      },
+      { capture: true }
+    );
   }
 
   // ==========================================================================
@@ -923,6 +946,7 @@ class BasaltApp {
     const fragment = document.createDocumentFragment();
     this.renderTreeNodes(tree, fragment);
     this.fileListContainer.appendChild(fragment);
+    this.restoreTreeFocus();
   }
 
   private buildTree(entries: FileEntry[]): TreeNode {
@@ -979,8 +1003,11 @@ class BasaltApp {
         folderEl.className = 'folder-item';
 
         const row = document.createElement('div');
-        row.className = `folder-row ${isSelected ? 'selected' : ''}`;
+        const isTreeFocused = this.treeFocusedPath === node.path;
+        row.className = `folder-row ${isSelected ? 'selected' : ''} ${isTreeFocused ? 'tree-focused' : ''}`;
         row.draggable = true;
+        row.dataset.path = node.path;
+        row.dataset.isDir = 'true';
 
         const iconHtml = customIcon ? renderIconPreview(customIcon) : renderDefaultFolderIcon(isCollapsed);
 
@@ -1071,6 +1098,7 @@ class BasaltApp {
         // Клик по самой строке папки: ТОЛЬКО выделение папки!
         row.addEventListener('click', (e) => {
           e.stopPropagation();
+          this.setTreeFocusedItem(node.path);
           this.selectedFolder = this.selectedFolder === node.path ? '' : node.path;
           this.renderFilteredTree();
         });
@@ -1089,8 +1117,11 @@ class BasaltApp {
       } else {
         const fileEl = document.createElement('div');
         const isActive = this.currentFile?.path === node.path;
-        fileEl.className = `file-item ${isActive ? 'active' : ''}`;
+        const isTreeFocused = this.treeFocusedPath === node.path;
+        fileEl.className = `file-item ${isActive ? 'active' : ''} ${isTreeFocused ? 'tree-focused' : ''}`;
         fileEl.draggable = true;
+        fileEl.dataset.path = node.path;
+        fileEl.dataset.isDir = 'false';
 
         const iconHtml = customIcon ? renderIconPreview(customIcon) : renderDefaultFileIcon();
         const customColor = metadataManager.getColor(node.path);
@@ -1143,6 +1174,7 @@ class BasaltApp {
 
         fileEl.addEventListener('click', (e) => {
           e.stopPropagation();
+          this.setTreeFocusedItem(node.path);
           if (node.fileEntry) {
             this.openFile(node.fileEntry);
             if (window.innerWidth <= 768) {
@@ -1215,6 +1247,7 @@ class BasaltApp {
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
       this.currentFile = file;
+      this.treeFocusedPath = file.path;
       this.activeFileName.textContent = file.name;
       this.updateActiveFileIcon();
       this.updateActiveFileNameColor();
@@ -1438,6 +1471,132 @@ class BasaltApp {
     } catch (err: any) {
       console.error(t('errorDelete'), err);
       alert(`${t('errorDelete')}: ${err.message}`);
+    }
+  }
+
+  // ==========================================================================
+  // КЛАВИАТУРНАЯ НАВИГАЦИЯ ПО ДЕРЕВУ (Ctrl + Up/Down, Ctrl + Enter)
+  // ==========================================================================
+  private isAnyModalOpen(): boolean {
+    return (
+      this.modalTrash?.style.display === 'flex' ||
+      this.modalSettings?.style.display === 'flex' ||
+      this.modalInfo?.style.display === 'flex' ||
+      this.modalIconPicker?.style.display === 'flex'
+    );
+  }
+
+  private getVisibleTreeElements(): HTMLElement[] {
+    const all = Array.from(
+      this.fileListContainer.querySelectorAll<HTMLElement>('.folder-row, .file-item')
+    );
+    return all.filter((el) => !el.closest('.folder-children.collapsed'));
+  }
+
+  private setTreeFocusedItem(path: string | null) {
+    this.treeFocusedPath = path;
+    this.fileListContainer.querySelectorAll('.tree-focused').forEach((el) => {
+      el.classList.remove('tree-focused');
+    });
+
+    if (path) {
+      const targetEl = this.fileListContainer.querySelector<HTMLElement>(
+        `[data-path="${CSS.escape(path)}"]`
+      );
+      if (targetEl) {
+        targetEl.classList.add('tree-focused');
+        targetEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }
+
+  private restoreTreeFocus() {
+    if (this.treeFocusedPath) {
+      this.setTreeFocusedItem(this.treeFocusedPath);
+    } else if (this.currentFile) {
+      this.setTreeFocusedItem(this.currentFile.path);
+    }
+  }
+
+  private handleTreeNavigate(direction: 'up' | 'down') {
+    // Если боковая панель свернута — раскрываем её
+    if (this.sidebar.classList.contains('collapsed')) {
+      this.sidebar.classList.remove('collapsed');
+      this.btnExpandSidebar.classList.remove('visible');
+    }
+    if (window.innerWidth <= 768 && !this.sidebar.classList.contains('open')) {
+      this.sidebar.classList.add('open');
+    }
+
+    const visibleEls = this.getVisibleTreeElements();
+    if (visibleEls.length === 0) return;
+
+    let currentIndex = -1;
+    if (this.treeFocusedPath) {
+      currentIndex = visibleEls.findIndex((el) => el.dataset.path === this.treeFocusedPath);
+    }
+    if (currentIndex === -1 && this.currentFile) {
+      currentIndex = visibleEls.findIndex((el) => el.dataset.path === this.currentFile?.path);
+    }
+
+    let nextIndex = 0;
+    if (currentIndex === -1) {
+      nextIndex = direction === 'down' ? 0 : visibleEls.length - 1;
+    } else {
+      if (direction === 'down') {
+        nextIndex = Math.min(visibleEls.length - 1, currentIndex + 1);
+      } else {
+        nextIndex = Math.max(0, currentIndex - 1);
+      }
+    }
+
+    const targetEl = visibleEls[nextIndex];
+    if (targetEl && targetEl.dataset.path) {
+      this.setTreeFocusedItem(targetEl.dataset.path);
+    }
+  }
+
+  private async handleTreeActivate() {
+    if (this.isAnyModalOpen()) return;
+
+    const visibleEls = this.getVisibleTreeElements();
+    if (visibleEls.length === 0) return;
+
+    let targetEl: HTMLElement | undefined;
+    if (this.treeFocusedPath) {
+      targetEl = visibleEls.find((el) => el.dataset.path === this.treeFocusedPath);
+    }
+    if (!targetEl && this.currentFile) {
+      targetEl = visibleEls.find((el) => el.dataset.path === this.currentFile?.path);
+    }
+    if (!targetEl) {
+      targetEl = visibleEls[0];
+    }
+    if (!targetEl || !targetEl.dataset.path) return;
+
+    const path = targetEl.dataset.path;
+    const isDir = targetEl.dataset.isDir === 'true';
+
+    if (isDir) {
+      // Раскрытие / сворачивание папки
+      if (this.collapsedFolders.has(path)) {
+        this.collapsedFolders.delete(path);
+      } else {
+        this.collapsedFolders.add(path);
+      }
+      this.renderFilteredTree();
+      this.setTreeFocusedItem(path);
+    } else {
+      // Открытие заметки и перевод фокуса в редактор
+      const entry = this.allEntries.find((e) => e.path === path && !e.isDirectory);
+      if (entry) {
+        await this.openFile(entry);
+        this.setTreeFocusedItem(path);
+        this.editor?.focus();
+        if (window.innerWidth <= 768) {
+          this.sidebar.classList.remove('open');
+        }
+      }
     }
   }
 

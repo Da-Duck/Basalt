@@ -631,6 +631,23 @@ body {
   border-left: 2.5px solid var(--accent);
 }
 
+/* Фокус клавиатурной навигации по дереву (Ctrl + Стрелка вверх/вниз) */
+.folder-row.tree-focused,
+.file-item.tree-focused {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: -2px;
+  background: var(--accent-subtle) !important;
+  color: var(--text-main) !important;
+}
+
+body.theme-light .folder-row.tree-focused,
+body.theme-light .file-item.tree-focused {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: -2px;
+  background: rgba(229, 169, 60, 0.15) !important;
+  color: #0f172a !important;
+}
+
 .file-item.dragging {
   opacity: 0.35;
   background: var(--bg-card);
