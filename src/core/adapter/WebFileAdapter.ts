@@ -167,4 +167,70 @@ export class WebFileAdapter implements FileSystemAdapter {
       isDirectory: true,
     };
   }
+
+  async deleteFile(path: string): Promise<void> {
+    if (!this.dirHandle) throw new Error('Хранилище не открыто');
+
+    const parts = path.split('/');
+    const filename = parts.pop()!;
+    const parentPath = parts.join('/');
+    const parentDir = parentPath ? this.dirHandles.get(parentPath) : this.dirHandle;
+
+    if (!parentDir) throw new Error(`Родительская папка не найдена: ${parentPath}`);
+
+    await parentDir.removeEntry(filename);
+    this.fileHandles.delete(path);
+  }
+
+  async deleteFolder(path: string): Promise<void> {
+    if (!this.dirHandle) throw new Error('Хранилище не открыто');
+
+    const parts = path.split('/');
+    const folderName = parts.pop()!;
+    const parentPath = parts.join('/');
+    const parentDir = parentPath ? this.dirHandles.get(parentPath) : this.dirHandle;
+
+    if (!parentDir) throw new Error(`Родительская папка не найдена: ${parentPath}`);
+
+    await parentDir.removeEntry(folderName, { recursive: true });
+    this.dirHandles.delete(path);
+
+    // Удаляем все дочерние пути из кэша
+    for (const k of Array.from(this.fileHandles.keys())) {
+      if (k.startsWith(`${path}/`)) this.fileHandles.delete(k);
+    }
+    for (const k of Array.from(this.dirHandles.keys())) {
+      if (k.startsWith(`${path}/`)) this.dirHandles.delete(k);
+    }
+  }
+
+  async moveEntry(oldPath: string, newParentPath: string): Promise<FileEntry> {
+    const isDir = this.dirHandles.has(oldPath);
+    const parts = oldPath.split('/');
+    const entryName = parts[parts.length - 1];
+
+    if (!isDir) {
+      // Перемещение файла: читаем, создаём на новом месте, удаляем старый
+      const content = await this.readFile(oldPath);
+      const newFile = await this.createFile(entryName, content, newParentPath);
+      await this.deleteFile(oldPath);
+      return newFile;
+    } else {
+      // Перемещение папки
+      const newFolder = await this.createFolder(entryName, newParentPath);
+      // Копируем содержимое рекурсивно
+      const allFiles = Array.from(this.fileHandles.keys()).filter(p => p.startsWith(`${oldPath}/`));
+      for (const fpath of allFiles) {
+        const subRel = fpath.slice(oldPath.length + 1);
+        const subParts = subRel.split('/');
+        const subFileName = subParts.pop()!;
+        const subParent = subParts.length > 0 ? `${newFolder.path}/${subParts.join('/')}` : newFolder.path;
+
+        const content = await this.readFile(fpath);
+        await this.createFile(subFileName, content, subParent);
+      }
+      await this.deleteFolder(oldPath);
+      return newFolder;
+    }
+  }
 }
