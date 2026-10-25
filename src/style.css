@@ -234,11 +234,17 @@ body {
 
 .workspace-select-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .workspace-dropdown {
   width: 100%;
-  padding: 6px 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 7px 38px 7px 12px;
   background: var(--bg-app);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -247,12 +253,36 @@ body {
   font-weight: 550;
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   font-family: inherit;
 }
 
 .workspace-dropdown:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.workspace-dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.workspace-select-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.workspace-select-wrapper:hover .workspace-select-arrow,
+.workspace-dropdown:focus + .workspace-select-arrow {
+  color: var(--accent);
 }
 
 /* Панель хранилища */
@@ -774,6 +804,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
   background: rgba(17, 20, 27, 0.95);
   backdrop-filter: blur(12px);
   user-select: none;
@@ -783,6 +814,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  max-width: calc(50% - 150px);
+  z-index: 1;
 }
 
 .mobile-only {
@@ -796,10 +830,19 @@ body {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-main);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .file-icon {
   font-size: 14px;
+  flex-shrink: 0;
+}
+
+.active-file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .save-badge {
@@ -811,6 +854,7 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .save-dot {
@@ -831,9 +875,17 @@ body {
   50% { opacity: 0.3; }
 }
 
-.header-right {
+/* Центральная зона шапки: абсолютно статична, зафиксирована строго по центру экрана */
+.header-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 /* Переключатель режимов: Редактор / Сплит / Просмотр */
@@ -844,7 +896,7 @@ body {
   padding: 2px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
-  margin-right: 14px;
+  margin-right: 0;
 }
 
 .view-mode-btn {
@@ -861,6 +913,7 @@ body {
   gap: 5px;
   transition: all 0.15s ease;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .view-mode-btn:hover {
@@ -874,10 +927,23 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 150px;
+  z-index: 1;
+}
+
 .editor-stats {
   font-size: 12px;
   color: var(--text-muted);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .stat-sep {
@@ -1751,6 +1817,19 @@ body.theme-light .guide-code-box {
 @media (max-width: 768px) {
   .mobile-only {
     display: flex;
+  }
+
+  .header-left {
+    max-width: none;
+  }
+
+  .header-center {
+    position: static;
+    transform: none;
+  }
+
+  .editor-stats {
+    display: none;
   }
 
   .basalt-sidebar {

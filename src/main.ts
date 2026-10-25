@@ -7,6 +7,8 @@ import {
   formatNotesCount,
   formatWordsCount,
   formatCharsCount,
+  formatRetentionDays,
+  setLang,
 } from './core/i18n/i18n';
 import { settingsManager, type ThemePreset } from './core/settings/settings';
 import { metadataManager } from './core/metadata/metadata';
@@ -498,7 +500,7 @@ class BasaltApp {
     document.getElementById('txt-trash-notice')!.textContent =
       retentionDays === 0
         ? `${t('trashRetentionNotice')}: ${t('infinity')}`
-        : `${t('trashRetentionNotice')} ${retentionDays} ${t('trashRetentionDays')}`;
+        : `${t('trashRetentionNotice')} ${formatRetentionDays(retentionDays)}`;
 
     listEl.innerHTML = '';
 
@@ -671,8 +673,26 @@ class BasaltApp {
     this.trashBadgeCount.textContent = String(count);
   }
 
+  private getFilteredFilesTotal(): number {
+    if (!this.adapter.isOpen()) return 0;
+    let filtered = [...this.allEntries];
+
+    const activeWs = settingsManager.get().activeWorkspace;
+    if (activeWs) {
+      filtered = filtered.filter((e) => e.path === activeWs || e.path.startsWith(`${activeWs}/`));
+    }
+
+    if (this.searchQuery) {
+      filtered = filtered.filter((e) => e.name.toLowerCase().includes(this.searchQuery));
+    }
+
+    return filtered.filter((e) => !e.isDirectory).length;
+  }
+
   private updateI18nLabels() {
-    document.documentElement.lang = settingsManager.get().language;
+    const lang = settingsManager.get().language;
+    setLang(lang);
+    document.documentElement.lang = lang;
 
     document.getElementById('txt-vault-label')!.textContent = `${t('vault')}:`;
     if (!this.adapter.isOpen()) {
@@ -692,6 +712,21 @@ class BasaltApp {
     const txtModePreview = document.getElementById('txt-mode-preview');
     if (txtModePreview) txtModePreview.textContent = t('modePreview');
 
+    this.btnModeEdit.title = `${t('modeEdit')} (Ctrl+E)`;
+    this.btnModeSplit.title = t('modeSplit');
+    this.btnModePreview.title = t('modePreview');
+
+    // Обновляем количество заметок в подвале (0 notes / 0 заметок)
+    this.filesCount.textContent = formatNotesCount(this.getFilteredFilesTotal());
+
+    // Название активной заметки по умолчанию
+    if (!this.currentFile) {
+      this.activeFileName.textContent = t('welcomeFileName');
+    }
+
+    // Статус сохранения
+    this.setSaveStatus(t('saveStatusReady'), false);
+
     // Настройки
     document.getElementById('txt-settings-heading')!.textContent = t('settingsTitle');
     document.getElementById('txt-theme-label')!.textContent = t('theme');
@@ -708,6 +743,14 @@ class BasaltApp {
 
     // Корзина
     document.getElementById('txt-trash-heading')!.textContent = t('trashTitle');
+    const trashNotice = document.getElementById('txt-trash-notice');
+    if (trashNotice) {
+      const retentionDays = settingsManager.get().trashRetentionDays;
+      trashNotice.textContent =
+        retentionDays === 0
+          ? `${t('trashRetentionNotice')}: ${t('infinity')}`
+          : `${t('trashRetentionNotice')} ${formatRetentionDays(retentionDays)}`;
+    }
 
     // Выбор иконки или цвета
     document.getElementById('txt-icon-picker-heading')!.textContent = t('chooseIconOrColorTitle');
@@ -738,9 +781,14 @@ class BasaltApp {
     this.btnOpenSettings.title = t('settings');
     this.btnOpenInfo.title = t('infoTooltip');
     this.btnOpenVault.title = this.adapter.isSupported() ? t('openFolder') : t('browserNotSupportedDesc');
+    const btnClearSearch = document.getElementById('btn-clear-search');
+    if (btnClearSearch) btnClearSearch.title = t('clearSearch');
 
     // Обновляем счетчики слов и знаков
     this.handleStatsChange(this.lastStats);
+
+    // Обновляем список пространств в выпадающем списке
+    this.updateWorkspacesDropdown();
   }
 
   // ==========================================================================

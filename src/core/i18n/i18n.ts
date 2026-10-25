@@ -90,6 +90,7 @@ export const translations = {
     modePreview: 'Просмотр',
     noteNotFoundPrompt: 'Заметка "{name}" не найдена. Создать новую заметку с таким именем?',
     emptyPreviewText: 'Заметка пуста. Начните писать текст в редакторе слева.',
+    clearSearch: 'Очистить поиск',
   },
   en: {
     vault: 'Vault',
@@ -180,10 +181,26 @@ export const translations = {
     modePreview: 'Preview',
     noteNotFoundPrompt: 'Note "{name}" not found. Create a new note with this name?',
     emptyPreviewText: 'Note is empty. Start writing in the editor on the left.',
+    clearSearch: 'Clear search',
   },
 };
 
-let currentLang: Language = (localStorage.getItem('basalt-lang') as Language) || 'ru';
+function getInitialLang(): Language {
+  try {
+    const direct = localStorage.getItem('basalt-lang') as Language;
+    if (direct === 'ru' || direct === 'en') return direct;
+    const settingsRaw = localStorage.getItem('basalt-settings');
+    if (settingsRaw) {
+      const parsed = JSON.parse(settingsRaw);
+      if (parsed.language === 'ru' || parsed.language === 'en') return parsed.language;
+    }
+  } catch {
+    // fallback
+  }
+  return 'ru';
+}
+
+let currentLang: Language = getInitialLang();
 
 export function getLang(): Language {
   return currentLang;
@@ -191,7 +208,11 @@ export function getLang(): Language {
 
 export function setLang(lang: Language) {
   currentLang = lang;
-  localStorage.setItem('basalt-lang', lang);
+  try {
+    localStorage.setItem('basalt-lang', lang);
+  } catch {
+    // ignore
+  }
 }
 
 export function t(key: keyof typeof translations['ru'], params?: Record<string, string | number>): string {
@@ -239,4 +260,17 @@ export function formatCharsCount(count: number): string {
   if (mod10 === 1) return `${count} знак`;
   if (mod10 >= 2 && mod10 <= 4) return `${count} знака`;
   return `${count} знаков`;
+}
+
+export function formatRetentionDays(days: number): string {
+  if (days === 0) return t('infinity');
+  if (currentLang === 'en') {
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
+  }
+  const mod10 = days % 10;
+  const mod100 = days % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${days} дней`;
+  if (mod10 === 1) return `${days} день`;
+  if (mod10 >= 2 && mod10 <= 4) return `${days} дня`;
+  return `${days} дней`;
 }

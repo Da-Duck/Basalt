@@ -48,6 +48,11 @@
             <select id="workspace-select" class="workspace-dropdown" disabled>
               <option value="">Всё хранилище</option>
             </select>
+            <div class="workspace-select-arrow" aria-hidden="true">
+              <svg class="ui-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -160,7 +165,7 @@
             </div>
           </div>
 
-          <div class="header-right">
+          <div class="header-center">
             <!-- Переключатель режима: Редактор, Сплит, Просмотр -->
             <div class="view-mode-selector" id="view-mode-selector">
               <button class="view-mode-btn" id="btn-mode-edit" data-mode="edit" title="Редактор (Ctrl+E)">
@@ -185,7 +190,9 @@
                 <span id="txt-mode-preview">Просмотр</span>
               </button>
             </div>
+          </div>
 
+          <div class="header-right">
             <div class="editor-stats" id="editor-stats">
               <span id="stat-words">0 слов</span>
               <span class="stat-sep">·</span>
