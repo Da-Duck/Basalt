@@ -186,15 +186,12 @@ class BasaltApp {
     this.setViewMode(this.currentViewMode);
 
     // Сворачивание и разворачивание боковой панели
-    this.btnCollapseSidebar.addEventListener('click', () => {
-      this.sidebar.classList.add('collapsed');
-      this.btnExpandSidebar.classList.add('visible');
-    });
-
-    this.btnExpandSidebar.addEventListener('click', () => {
-      this.sidebar.classList.remove('collapsed');
-      this.btnExpandSidebar.classList.remove('visible');
-    });
+    const toggleCollapse = (collapsed: boolean) => {
+      this.sidebar.classList.toggle('collapsed', collapsed);
+      this.btnExpandSidebar.classList.toggle('visible', collapsed);
+    };
+    this.btnCollapseSidebar.addEventListener('click', () => toggleCollapse(true));
+    this.btnExpandSidebar.addEventListener('click', () => toggleCollapse(false));
 
     this.btnToggleSidebar?.addEventListener('click', () => {
       this.sidebar.classList.toggle('open');
@@ -673,20 +670,21 @@ class BasaltApp {
     this.trashBadgeCount.textContent = String(count);
   }
 
-  private getFilteredFilesTotal(): number {
-    if (!this.adapter.isOpen()) return 0;
+  private getFilteredEntries(): FileEntry[] {
     let filtered = [...this.allEntries];
-
     const activeWs = settingsManager.get().activeWorkspace;
     if (activeWs) {
       filtered = filtered.filter((e) => e.path === activeWs || e.path.startsWith(`${activeWs}/`));
     }
-
     if (this.searchQuery) {
       filtered = filtered.filter((e) => e.name.toLowerCase().includes(this.searchQuery));
     }
+    return filtered;
+  }
 
-    return filtered.filter((e) => !e.isDirectory).length;
+  private getFilteredFilesTotal(): number {
+    if (!this.adapter.isOpen()) return 0;
+    return this.getFilteredEntries().filter((e) => !e.isDirectory).length;
   }
 
   private updateI18nLabels() {
@@ -900,19 +898,7 @@ class BasaltApp {
   // ДЕРЕВО ФАЙЛОВ И ДРАГ-ЭНД-ДРОП
   // ==========================================================================
   private renderFilteredTree() {
-    let filtered = [...this.allEntries];
-
-    // Фильтр по активному пространству
-    const activeWs = settingsManager.get().activeWorkspace;
-    if (activeWs) {
-      filtered = filtered.filter((e) => e.path === activeWs || e.path.startsWith(`${activeWs}/`));
-    }
-
-    // Фильтр по поисковому запросу
-    if (this.searchQuery) {
-      filtered = filtered.filter((e) => e.name.toLowerCase().includes(this.searchQuery));
-    }
-
+    const filtered = this.getFilteredEntries();
     const filesTotal = filtered.filter((e) => !e.isDirectory).length;
     this.filesCount.textContent = formatNotesCount(filesTotal);
 
@@ -1055,13 +1041,13 @@ class BasaltApp {
         const btnNewFile = row.querySelector('.btn-folder-new-file');
         btnNewFile?.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.handleCreateNewNoteIn(node.path);
+          this.handleCreateNewNote(node.path);
         });
 
         const btnNewSub = row.querySelector('.btn-folder-new-sub');
         btnNewSub?.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.handleCreateNewFolderIn(node.path);
+          this.handleCreateNewFolder(node.path);
         });
 
         const btnRenameDir = row.querySelector('.btn-folder-rename');
@@ -1260,10 +1246,10 @@ class BasaltApp {
     }
   }
 
-  private async handleCreateNewNote() {
+  private async handleCreateNewNote(parentFolder: string = this.selectedFolder) {
     if (!this.adapter.isOpen()) return;
 
-    const folderHint = this.selectedFolder ? ` (${this.selectedFolder})` : '';
+    const folderHint = parentFolder ? ` (${parentFolder})` : '';
     const name = prompt(`${t('promptNoteName')}${folderHint}:`, t('newNote'));
     if (!name || name.trim().length === 0) return;
 
@@ -1273,13 +1259,14 @@ class BasaltApp {
       const newFile = await this.adapter.createFile(
         cleanName,
         `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
-        this.selectedFolder
+        parentFolder
       );
 
       metadataManager.touchNote(newFile.path, newFile.lastModified || Date.now());
 
-      if (this.selectedFolder) {
-        this.collapsedFolders.delete(this.selectedFolder);
+      if (parentFolder) {
+        this.collapsedFolders.delete(parentFolder);
+        this.selectedFolder = parentFolder;
       }
 
       this.allEntries = await this.adapter.refresh();
@@ -1293,74 +1280,22 @@ class BasaltApp {
     }
   }
 
-  private async handleCreateNewNoteIn(parentPath: string) {
+  private async handleCreateNewFolder(parentFolder: string = this.selectedFolder) {
     if (!this.adapter.isOpen()) return;
 
-    const name = prompt(`${t('promptNoteName')} (${parentPath}):`, t('newNote'));
-    if (!name || name.trim().length === 0) return;
-
-    try {
-      this.setSaveStatus(t('saveStatusSaving'), true);
-      const cleanName = name.trim();
-      const newFile = await this.adapter.createFile(
-        cleanName,
-        `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
-        parentPath
-      );
-
-      metadataManager.touchNote(newFile.path, newFile.lastModified || Date.now());
-
-      this.collapsedFolders.delete(parentPath);
-      this.selectedFolder = parentPath;
-      this.allEntries = await this.adapter.refresh();
-      this.renderFilteredTree();
-      await this.openFile(newFile);
-      this.setSaveStatus(t('saveStatusSaved'), false);
-    } catch (err: any) {
-      console.error(t('errorCreateFile'), err);
-      alert(`${t('errorCreateFile')}: ${err.message}`);
-      this.setSaveStatus(t('saveStatusError'), false);
-    }
-  }
-
-  private async handleCreateNewFolder() {
-    if (!this.adapter.isOpen()) return;
-
-    const folderHint = this.selectedFolder ? ` (${this.selectedFolder})` : '';
+    const folderHint = parentFolder ? ` (${parentFolder})` : '';
     const name = prompt(`${t('promptFolderName')}${folderHint}:`, t('newFolder'));
     if (!name || name.trim().length === 0) return;
 
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
-      await this.adapter.createFolder(name.trim(), this.selectedFolder);
+      await this.adapter.createFolder(name.trim(), parentFolder);
 
-      if (this.selectedFolder) {
-        this.collapsedFolders.delete(this.selectedFolder);
+      if (parentFolder) {
+        this.collapsedFolders.delete(parentFolder);
+        this.selectedFolder = parentFolder;
       }
 
-      this.allEntries = await this.adapter.refresh();
-      this.updateWorkspacesDropdown();
-      this.renderFilteredTree();
-      this.setSaveStatus(t('saveStatusReady'), false);
-    } catch (err: any) {
-      console.error(t('errorCreateFolder'), err);
-      alert(`${t('errorCreateFolder')}: ${err.message}`);
-      this.setSaveStatus(t('saveStatusError'), false);
-    }
-  }
-
-  private async handleCreateNewFolderIn(parentPath: string) {
-    if (!this.adapter.isOpen()) return;
-
-    const name = prompt(`${t('promptFolderName')} (${parentPath}):`, t('newFolder'));
-    if (!name || name.trim().length === 0) return;
-
-    try {
-      this.setSaveStatus(t('saveStatusSaving'), true);
-      await this.adapter.createFolder(name.trim(), parentPath);
-
-      this.collapsedFolders.delete(parentPath);
-      this.selectedFolder = parentPath;
       this.allEntries = await this.adapter.refresh();
       this.updateWorkspacesDropdown();
       this.renderFilteredTree();

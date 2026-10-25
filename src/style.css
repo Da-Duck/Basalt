@@ -29,6 +29,8 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
 }
 
 html,
@@ -115,11 +117,6 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-hover);
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent) transparent;
 }
 
 /* ==========================================================================
@@ -677,60 +674,6 @@ body {
 .file-act-btn.danger:hover {
   color: var(--danger);
   background: rgba(239, 68, 68, 0.15);
-}
-
-.file-item-delete {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  opacity: 0;
-  padding: 2px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.file-item:hover .file-actions {
-  display: none;
-  align-items: center;
-  gap: 2px;
-}
-
-.file-item:hover .file-actions,
-.file-item.active .file-actions {
-  display: flex;
-}
-
-.file-act-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.file-act-btn:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-main);
-}
-
-.file-act-btn.danger:hover {
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.file-item-delete {
-  opacity: 0.7;
-}
-
-.file-item-delete:hover {
-  opacity: 1 !important;
-  color: var(--danger);
 }
 
 .sidebar-empty {

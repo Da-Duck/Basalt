@@ -1,8 +1,4 @@
-export interface RenderOptions {
-  currentNotePath?: string;
-  onInternalLinkClick?: (target: string) => void;
-  onCheckboxToggle?: (lineIndex: number, checked: boolean) => void;
-}
+import { t } from '../i18n/i18n';
 
 export class MarkdownRenderer {
   /**
@@ -84,7 +80,7 @@ export class MarkdownRenderer {
    */
   public static renderDocument(markdown: string): string {
     if (!markdown || !markdown.trim()) {
-      return '<div class="preview-empty-hint"><p>Заметка пуста. Начните писать текст в редакторе слева.</p></div>';
+      return `<div class="preview-empty-hint"><p>${t('emptyPreviewText')}</p></div>`;
     }
 
     const lines = markdown.replace(/\r\n/g, '\n').split('\n');

@@ -83,19 +83,9 @@ export class BasaltEditor {
         const isMod = event.ctrlKey || event.metaKey;
         if (!isMod) return false;
 
-        const isZ =
-          event.key === 'z' ||
-          event.key === 'Z' ||
-          event.code === 'KeyZ' ||
-          event.key === 'я' ||
-          event.key === 'Я';
-
-        const isY =
-          event.key === 'y' ||
-          event.key === 'Y' ||
-          event.code === 'KeyY' ||
-          event.key === 'н' ||
-          event.key === 'Н';
+        const keyLower = event.key.toLowerCase();
+        const isZ = keyLower === 'z' || event.code === 'KeyZ' || keyLower === 'я';
+        const isY = keyLower === 'y' || event.code === 'KeyY' || keyLower === 'н';
 
         // Redo: Ctrl+Shift+Z / Cmd+Shift+Z
         if (event.shiftKey && isZ) {

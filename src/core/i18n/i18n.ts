@@ -225,52 +225,36 @@ export function t(key: keyof typeof translations['ru'], params?: Record<string, 
   return text;
 }
 
+function pluralizeRu(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${n} ${many}`;
+  if (mod10 === 1) return `${n} ${one}`;
+  if (mod10 >= 2 && mod10 <= 4) return `${n} ${few}`;
+  return `${n} ${many}`;
+}
+
 export function formatNotesCount(count: number): string {
-  if (currentLang === 'en') {
-    return `${count} ${count === 1 ? 'note' : 'notes'}`;
-  }
-  // Русское склонение
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${count} заметок`;
-  if (mod10 === 1) return `${count} заметка`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} заметки`;
-  return `${count} заметок`;
+  return currentLang === 'en'
+    ? `${count} ${count === 1 ? 'note' : 'notes'}`
+    : pluralizeRu(count, 'заметка', 'заметки', 'заметок');
 }
 
 export function formatWordsCount(count: number): string {
-  if (currentLang === 'en') {
-    return `${count} ${count === 1 ? 'word' : 'words'}`;
-  }
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${count} слов`;
-  if (mod10 === 1) return `${count} слово`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} слова`;
-  return `${count} слов`;
+  return currentLang === 'en'
+    ? `${count} ${count === 1 ? 'word' : 'words'}`
+    : pluralizeRu(count, 'слово', 'слова', 'слов');
 }
 
 export function formatCharsCount(count: number): string {
-  if (currentLang === 'en') {
-    return `${count} ${count === 1 ? 'char' : 'chars'}`;
-  }
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${count} знаков`;
-  if (mod10 === 1) return `${count} знак`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} знака`;
-  return `${count} знаков`;
+  return currentLang === 'en'
+    ? `${count} ${count === 1 ? 'char' : 'chars'}`
+    : pluralizeRu(count, 'знак', 'знака', 'знаков');
 }
 
 export function formatRetentionDays(days: number): string {
   if (days === 0) return t('infinity');
-  if (currentLang === 'en') {
-    return `${days} ${days === 1 ? 'day' : 'days'}`;
-  }
-  const mod10 = days % 10;
-  const mod100 = days % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${days} дней`;
-  if (mod10 === 1) return `${days} день`;
-  if (mod10 >= 2 && mod10 <= 4) return `${days} дня`;
-  return `${days} дней`;
+  return currentLang === 'en'
+    ? `${days} ${days === 1 ? 'day' : 'days'}`
+    : pluralizeRu(days, 'день', 'дня', 'дней');
 }
