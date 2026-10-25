@@ -12,6 +12,7 @@ import { settingsManager, type ThemePreset } from './core/settings/settings';
 import { metadataManager } from './core/metadata/metadata';
 import { FLATICON_SVGS, EMOJI_LIST, renderIconPreview } from './core/icons/icons';
 import { getMarkdownGuideHtml } from './core/guide/markdownGuide';
+import { MarkdownRenderer } from './core/markdown/markdownRenderer';
 
 interface TreeNode {
   name: string;
@@ -46,6 +47,8 @@ class BasaltApp {
   private searchQuery: string = '';
   private iconPickerTarget: { path: string; isDir: boolean } | null = null;
   private lastStats: EditorStats = { words: 0, chars: 0, lines: 0 };
+  private currentViewMode: 'edit' | 'split' | 'preview' =
+    (localStorage.getItem('basalt-view-mode') as 'edit' | 'split' | 'preview') || 'split';
 
   // DOM Элементы
   private btnOpenVault = document.getElementById('btn-open-vault') as HTMLButtonElement;
@@ -61,7 +64,16 @@ class BasaltApp {
   private statWords = document.getElementById('stat-words') as HTMLElement;
   private statChars = document.getElementById('stat-chars') as HTMLElement;
   private sidebar = document.getElementById('sidebar') as HTMLElement;
+
+  // Рабочая область редактора и превью
+  private editorWorkspace = document.getElementById('editor-workspace') as HTMLElement;
   private editorMount = document.getElementById('editor-mount') as HTMLElement;
+  private markdownPreviewContent = document.getElementById('markdown-preview-content') as HTMLElement;
+
+  // Кнопки переключения режимов (Редактор / Сплит / Просмотр)
+  private btnModeEdit = document.getElementById('btn-mode-edit') as HTMLButtonElement;
+  private btnModeSplit = document.getElementById('btn-mode-split') as HTMLButtonElement;
+  private btnModePreview = document.getElementById('btn-mode-preview') as HTMLButtonElement;
 
   // Поиск, пространства, сворачивание
   private searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -107,6 +119,10 @@ class BasaltApp {
 
     // Очистка корзины по сроку хранения
     metadataManager.purgeExpired(settingsManager.get().trashRetentionDays);
+
+    // Первоначальный рендеринг предпросмотра
+    const initialDoc = this.editor?.getContent() || '';
+    this.updatePreview(initialDoc);
   }
 
   private checkBrowserSupport() {
@@ -121,6 +137,9 @@ class BasaltApp {
     this.editor = new BasaltEditor(this.editorMount, {
       onChange: (content: string) => this.handleContentChange(content),
       onStatsChange: (stats: EditorStats) => this.handleStatsChange(stats),
+      onManualSave: () => this.handleManualSave(),
+      onToggleMode: () => this.handleCycleViewMode(),
+      onInternalLinkClick: (target: string) => this.handleNavigateToNote(target),
     });
   }
 
@@ -128,6 +147,41 @@ class BasaltApp {
     this.btnOpenVault.addEventListener('click', () => this.handleOpenVault());
     this.btnNewNote.addEventListener('click', () => this.handleCreateNewNote());
     this.btnNewFolder.addEventListener('click', () => this.handleCreateNewFolder());
+
+    // Переключение режимов отображения (Редактор / Сплит / Просмотр)
+    this.btnModeEdit.addEventListener('click', () => this.setViewMode('edit'));
+    this.btnModeSplit.addEventListener('click', () => this.setViewMode('split'));
+    this.btnModePreview.addEventListener('click', () => this.setViewMode('preview'));
+
+    // Делегирование событий в области предварительного просмотра (чекбоксы задач и переходы по ссылкам)
+    this.markdownPreviewContent.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+
+      // Клик по внутренней ссылке на другую заметку
+      const internalLink = target.closest('.internal-link');
+      if (internalLink) {
+        e.preventDefault();
+        const noteTarget = internalLink.getAttribute('data-internal-target');
+        if (noteTarget) {
+          this.handleNavigateToNote(noteTarget);
+        }
+        return;
+      }
+
+      // Клик по интерактивному чекбоксу задачи
+      if (target.classList.contains('md-task-checkbox')) {
+        const checkbox = target as HTMLInputElement;
+        const lineIndexStr = checkbox.getAttribute('data-line-index');
+        if (lineIndexStr !== null) {
+          const lineIndex = parseInt(lineIndexStr, 10);
+          this.editor?.toggleCheckboxLine(lineIndex, checkbox.checked);
+        }
+        return;
+      }
+    });
+
+    // Применяем сохранённый режим просмотра
+    this.setViewMode(this.currentViewMode);
 
     // Сворачивание и разворачивание боковой панели
     this.btnCollapseSidebar.addEventListener('click', () => {
@@ -174,6 +228,97 @@ class BasaltApp {
     this.btnOpenTrash.addEventListener('click', () => this.openTrashModal());
     this.btnOpenSettings.addEventListener('click', () => this.openSettingsModal());
     this.btnOpenInfo.addEventListener('click', () => this.openInfoModal());
+  }
+
+  // ==========================================================================
+  // РЕЖИМЫ ОТОБРАЖЕНИЯ (РЕДАКТОР / СПЛИТ / ПРОСМОТР)
+  // ==========================================================================
+  private setViewMode(mode: 'edit' | 'split' | 'preview') {
+    this.currentViewMode = mode;
+    localStorage.setItem('basalt-view-mode', mode);
+
+    this.editorWorkspace.classList.remove('mode-edit', 'mode-split', 'mode-preview');
+    this.editorWorkspace.classList.add(`mode-${mode}`);
+
+    this.btnModeEdit.classList.toggle('active', mode === 'edit');
+    this.btnModeSplit.classList.toggle('active', mode === 'split');
+    this.btnModePreview.classList.toggle('active', mode === 'preview');
+
+    if (mode === 'preview' || mode === 'split') {
+      const content = this.editor?.getContent() || '';
+      this.updatePreview(content);
+    }
+
+    if (mode === 'edit' || mode === 'split') {
+      this.editor?.focus();
+    }
+  }
+
+  private handleCycleViewMode() {
+    const modes: Array<'edit' | 'split' | 'preview'> = ['edit', 'split', 'preview'];
+    const nextIdx = (modes.indexOf(this.currentViewMode) + 1) % modes.length;
+    this.setViewMode(modes[nextIdx]);
+  }
+
+  private updatePreview(markdownText: string) {
+    if (!this.markdownPreviewContent) return;
+    this.markdownPreviewContent.innerHTML = MarkdownRenderer.renderDocument(markdownText);
+  }
+
+  private handleManualSave() {
+    this.setSaveStatus(t('saveStatusSaved'), false);
+    if (this.currentFile) {
+      const content = this.editor?.getContent() || '';
+      this.handleContentChange(content);
+    }
+  }
+
+  // ==========================================================================
+  // ПЕРЕХОД ПО ВНУТРЕННИМ ССЫЛКАМ НА ДРУГИЕ ЗАМЕТКИ
+  // ==========================================================================
+  private async handleNavigateToNote(target: string) {
+    const cleanTarget = target.trim().replace(/^(\.\/|\/)/, '');
+    const cleanWithoutExt = cleanTarget.replace(/\.md$/, '');
+
+    // 1. Поиск по относительному пути хранилища
+    let found = this.allEntries.find(
+      (e) => !e.isDirectory && (e.path === cleanTarget || e.path === `${cleanTarget}.md` || e.path === `${cleanWithoutExt}.md`)
+    );
+
+    // 2. Поиск по точному имени файла
+    if (!found) {
+      found = this.allEntries.find(
+        (e) => !e.isDirectory && (e.name === cleanTarget || e.name === `${cleanWithoutExt}.md`)
+      );
+    }
+
+    // 3. Регистронезависимый поиск по имени заметки
+    if (!found) {
+      found = this.allEntries.find(
+        (e) =>
+          !e.isDirectory &&
+          (e.name.replace(/\.md$/, '').toLowerCase() === cleanWithoutExt.toLowerCase() ||
+           e.path.replace(/\.md$/, '').toLowerCase() === cleanWithoutExt.toLowerCase())
+      );
+    }
+
+    if (found) {
+      await this.openFile(found);
+    } else {
+      if (!this.adapter.isOpen()) return;
+      const shouldCreate = confirm(t('noteNotFoundPrompt', { name: cleanWithoutExt }));
+      if (shouldCreate) {
+        const newFile = await this.adapter.createFile(
+          cleanWithoutExt,
+          `# ${cleanWithoutExt}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
+          this.selectedFolder || ''
+        );
+        metadataManager.touchNote(newFile.path, newFile.lastModified || Date.now());
+        this.allEntries = await this.adapter.refresh();
+        this.renderFilteredTree();
+        await this.openFile(newFile);
+      }
+    }
   }
 
   // ==========================================================================
@@ -274,8 +419,6 @@ class BasaltApp {
       });
 
       metadataManager.purgeExpired(days);
-
-      // Перезагружаем страницу для полного чистого обновления всего состояния
       window.location.reload();
     });
 
@@ -375,7 +518,6 @@ class BasaltApp {
       const createdStr = new Date(item.createdAt).toLocaleDateString(settingsManager.get().language);
       const deletedStr = new Date(item.deletedAt).toLocaleDateString(settingsManager.get().language);
 
-      // В кнопке восстановления остается ТОЛЬКО стрелочка (символ без текста)
       card.innerHTML = `
         <div class="trash-card-info">
           <span class="trash-card-title">${item.name}</span>
@@ -542,6 +684,14 @@ class BasaltApp {
     this.searchInput.placeholder = t('searchPlaceholder');
     document.getElementById('txt-sidebar-empty')!.textContent = t('emptyVaultText');
 
+    // Кнопки режимов отображения
+    const txtModeEdit = document.getElementById('txt-mode-edit');
+    if (txtModeEdit) txtModeEdit.textContent = t('modeEdit');
+    const txtModeSplit = document.getElementById('txt-mode-split');
+    if (txtModeSplit) txtModeSplit.textContent = t('modeSplit');
+    const txtModePreview = document.getElementById('txt-mode-preview');
+    if (txtModePreview) txtModePreview.textContent = t('modePreview');
+
     // Настройки
     document.getElementById('txt-settings-heading')!.textContent = t('settingsTitle');
     document.getElementById('txt-theme-label')!.textContent = t('theme');
@@ -652,7 +802,6 @@ class BasaltApp {
   }
 
   private updateWorkspacesDropdown() {
-    // Пространства — это папки верхнего уровня в хранилище
     const topDirs = this.allEntries.filter((e) => e.isDirectory && !e.path.includes('/'));
 
     this.workspaceSelect.innerHTML = `
@@ -1031,11 +1180,14 @@ class BasaltApp {
       this.updateActiveFileNameColor();
 
       const text = await this.adapter.readFile(file.path);
+      metadataManager.touchNote(file.path, file.lastModified);
+
       if (this.editor) {
         this.editor.setContent(text);
         this.editor.focus();
       }
 
+      this.updatePreview(text);
       this.renderFilteredTree();
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err: any) {
@@ -1052,6 +1204,7 @@ class BasaltApp {
       this.setSaveStatus(t('saveStatusSaving'), true);
       await this.adapter.writeFile(this.currentFile.path, content);
       metadataManager.touchNote(this.currentFile.path);
+      this.updatePreview(content);
       this.setSaveStatus(t('saveStatusSaved'), false);
     } catch (err) {
       console.error(t('saveStatusError'), err);
@@ -1250,6 +1403,7 @@ class BasaltApp {
         this.activeFileIcon.textContent = '📄';
         this.activeFileName.style.color = '';
         this.editor?.setContent('');
+        this.updatePreview('');
       }
 
       this.allEntries = await this.adapter.refresh();
@@ -1288,6 +1442,7 @@ class BasaltApp {
         this.activeFileIcon.textContent = '📄';
         this.activeFileName.style.color = '';
         this.editor?.setContent('');
+        this.updatePreview('');
       }
 
       this.renderFilteredTree();

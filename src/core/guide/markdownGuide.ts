@@ -59,9 +59,13 @@ export function getMarkdownGuideHtml(lang: Language): string {
         </section>
 
         <section class="guide-section">
-          <h4>7. Links & Images</h4>
+          <h4>7. Links, Notes & Images</h4>
+          <p class="guide-desc">Create external links, inter-note links (WikiLinks), and embed images:</p>
           <div class="guide-code-box">
             <code>[Basalt GitHub Repository](https://github.com/Da-Duck/Basalt)<br/>
+            [[Other Note Name]] &nbsp;➔&nbsp; Link to another note<br/>
+            [[Folder/Note|Custom Title]] &nbsp;➔&nbsp; Note link with custom text<br/>
+            [Link to note](Other Note.md)<br/>
             ![Image description](https://example.com/photo.jpg)</code>
           </div>
         </section>
@@ -146,9 +150,13 @@ export function getMarkdownGuideHtml(lang: Language): string {
       </section>
 
       <section class="guide-section">
-        <h4>7. Ссылки и картинки</h4>
+        <h4>7. Ссылки, переход между заметками и картинки</h4>
+        <p class="guide-desc">Создавайте ссылки на сайты, перекрёстные ссылки между заметками (WikiLinks) и вставляйте изображения:</p>
         <div class="guide-code-box">
           <code>[Репозиторий Basalt на GitHub](https://github.com/Da-Duck/Basalt)<br/>
+          [[Другая заметка]] &nbsp;➔&nbsp; Переход к другой заметке<br/>
+          [[Папка/Заметка|Свой текст]] &nbsp;➔&nbsp; Ссылка на заметку со своим текстом<br/>
+          [Текст ссылки](Другая заметка.md)<br/>
           ![Описание картинки](https://example.com/photo.jpg)</code>
         </div>
       </section>

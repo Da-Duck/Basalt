@@ -85,6 +85,11 @@ export const translations = {
     errorDelete: 'Не удалось удалить',
     errorMove: 'Не удалось переместить',
     welcomeFileName: 'Добро пожаловать.md',
+    modeEdit: 'Редактор',
+    modeSplit: 'Сплит',
+    modePreview: 'Просмотр',
+    noteNotFoundPrompt: 'Заметка "{name}" не найдена. Создать новую заметку с таким именем?',
+    emptyPreviewText: 'Заметка пуста. Начните писать текст в редакторе слева.',
   },
   en: {
     vault: 'Vault',
@@ -170,6 +175,11 @@ export const translations = {
     errorDelete: 'Failed to delete',
     errorMove: 'Failed to move',
     welcomeFileName: 'Welcome.md',
+    modeEdit: 'Edit',
+    modeSplit: 'Split',
+    modePreview: 'Preview',
+    noteNotFoundPrompt: 'Note "{name}" not found. Create a new note with this name?',
+    emptyPreviewText: 'Note is empty. Start writing in the editor on the left.',
   },
 };
 
