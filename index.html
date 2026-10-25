@@ -1,13 +1,99 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>basalt</title>
+    <title>Basalt — Open Source Markdown Notes</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="app" class="basalt-layout">
+      <!-- Боковая панель (Хранилище и список заметок) -->
+      <aside class="basalt-sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="brand">
+            <span class="brand-icon">🪨</span>
+            <div class="brand-text">
+              <span class="brand-name">Basalt</span>
+              <span class="brand-badge">Alpha</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-panel">
+          <div class="vault-info">
+            <span class="vault-label">Хранилище:</span>
+            <span class="vault-title" id="vault-title">Не подключено</span>
+          </div>
+          <button id="btn-open-vault" class="btn btn-primary" title="Открыть локальную папку с заметками">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Открыть папку</span>
+          </button>
+        </div>
+
+        <div class="files-header">
+          <span class="section-title">Заметки</span>
+          <button id="btn-new-note" class="icon-btn" title="Создать новую заметку" disabled>
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="file-list-container" id="file-list">
+          <div class="sidebar-empty">
+            <p>Откройте папку на вашем ПК, чтобы просматривать и редактировать заметки</p>
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <span class="footer-stat" id="files-count">0 заметок</span>
+          <a href="https://github.com/Da-Duck/Basalt" target="_blank" rel="noreferrer" class="github-link" title="GitHub Репозиторий">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+          </a>
+        </div>
+      </aside>
+
+      <!-- Главная рабочая область редактора -->
+      <main class="basalt-main">
+        <header class="main-header">
+          <div class="header-left">
+            <button id="btn-toggle-sidebar" class="icon-btn mobile-only" title="Скрыть/показать меню">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <div class="active-file-badge">
+              <span class="file-icon">📄</span>
+              <span class="active-file-name" id="active-file-name">Добро пожаловать.md</span>
+            </div>
+            <div class="save-badge" id="save-badge">
+              <span class="save-dot"></span>
+              <span class="save-text" id="save-status-text">Готово</span>
+            </div>
+          </div>
+
+          <div class="header-right">
+            <div class="editor-stats" id="editor-stats">
+              <span id="stat-words">0 слов</span>
+              <span class="stat-sep">·</span>
+              <span id="stat-chars">0 знаков</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="editor-mount" id="editor-mount"></div>
+      </main>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
