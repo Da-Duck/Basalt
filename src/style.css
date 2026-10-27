@@ -2086,3 +2086,213 @@ body.theme-light .slash-menu-badge {
   background: #f8fafc;
   border-color: #e2e8f0;
 }
+
+/* Облачная синхронизация */
+.sync-status-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.sync-status-indicator.success,
+.sync-status-indicator.status-success {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.sync-status-indicator.error,
+.sync-status-indicator.status-error {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.sync-status-indicator.syncing,
+.sync-status-indicator.status-syncing {
+  background: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+  animation: syncPulse 0.8s infinite alternate;
+}
+
+@keyframes syncPulse {
+  from { opacity: 0.4; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes syncSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.header-icon-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.header-icon-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: var(--border-hover);
+}
+
+.header-icon-btn.syncing svg {
+  animation: syncSpin 1s linear infinite;
+  color: #3b82f6;
+}
+
+.sync-modal-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sync-provider-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.sync-help-box {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+}
+
+.sync-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.sync-link:hover {
+  text-decoration: underline;
+  color: var(--accent-hover);
+}
+
+.sync-help-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.sync-status-card {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.sync-status-title {
+  color: var(--text-muted);
+}
+
+.sync-status-value {
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.sync-progress-bar-wrap {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sync-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: syncProgressIndeterminate 1.2s infinite ease-in-out;
+}
+
+@keyframes syncProgressIndeterminate {
+  0% { left: -40%; width: 40%; }
+  50% { left: 30%; width: 50%; }
+  100% { left: 100%; width: 40%; }
+}
+
+.sync-progress-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sync-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-modal-footer .footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-main);
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}

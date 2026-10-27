@@ -12,6 +12,7 @@ export interface FileSystemAdapter {
   refresh(): Promise<FileEntry[]>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
+  ensureFile(path: string, content: string): Promise<void>;
   createFile(name: string, initialContent?: string, parentPath?: string): Promise<FileEntry>;
   createFolder(name: string, parentPath?: string): Promise<FileEntry>;
   deleteFile(path: string): Promise<void>;

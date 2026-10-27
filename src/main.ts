@@ -21,6 +21,8 @@ import {
 } from './core/icons/icons';
 import { getMarkdownGuideHtml } from './core/guide/markdownGuide';
 import { MarkdownRenderer } from './core/markdown/markdownRenderer';
+import { SyncEngine } from './core/sync/SyncEngine';
+import type { SyncStatus, SyncProgress } from './core/sync/types';
 
 interface TreeNode {
   name: string;
@@ -118,8 +120,38 @@ class BasaltApp {
   private noteColorSwatches = document.getElementById('note-color-swatches') as HTMLElement | null;
   private btnResetColor = document.getElementById('btn-reset-color') as HTMLButtonElement | null;
 
+  // Облачная синхронизация
+  private syncEngine: SyncEngine;
+  private autoSyncTimeout: number | null = null;
+  private btnOpenSync = document.getElementById('btn-open-sync') as HTMLButtonElement | null;
+  private btnQuickSync = document.getElementById('btn-quick-sync') as HTMLButtonElement | null;
+  private syncStatusIndicator = document.getElementById('sync-status-indicator') as HTMLElement | null;
+  private modalSync = document.getElementById('modal-sync') as HTMLElement | null;
+  private syncTabYandex = document.getElementById('sync-tab-yandex') as HTMLButtonElement | null;
+  private syncTabWebdav = document.getElementById('sync-tab-webdav') as HTMLButtonElement | null;
+  private syncSectionYandex = document.getElementById('sync-section-yandex') as HTMLElement | null;
+  private syncSectionWebdav = document.getElementById('sync-section-webdav') as HTMLElement | null;
+  private syncYandexToken = document.getElementById('sync-yandex-token') as HTMLInputElement | null;
+  private syncYandexPath = document.getElementById('sync-yandex-path') as HTMLInputElement | null;
+  private syncWebdavUrl = document.getElementById('sync-webdav-url') as HTMLInputElement | null;
+  private syncWebdavUser = document.getElementById('sync-webdav-user') as HTMLInputElement | null;
+  private syncWebdavPass = document.getElementById('sync-webdav-pass') as HTMLInputElement | null;
+  private syncWebdavPath = document.getElementById('sync-webdav-path') as HTMLInputElement | null;
+  private syncAutoSave = document.getElementById('sync-auto-save') as HTMLInputElement | null;
+  private btnTestSyncConnection = document.getElementById('btn-test-sync-connection') as HTMLButtonElement | null;
+  private btnSaveSyncSettings = document.getElementById('btn-save-sync-settings') as HTMLButtonElement | null;
+  private btnTriggerSync = document.getElementById('btn-trigger-sync') as HTMLButtonElement | null;
+  private syncStatusText = document.getElementById('sync-status-text') as HTMLElement | null;
+  private syncAccountRow = document.getElementById('sync-account-row') as HTMLElement | null;
+  private syncAccountText = document.getElementById('sync-account-text') as HTMLElement | null;
+  private syncLastTimeText = document.getElementById('sync-last-time-text') as HTMLElement | null;
+  private syncProgressWrap = document.getElementById('sync-progress-wrap') as HTMLElement | null;
+  private syncProgressLabel = document.getElementById('sync-progress-label') as HTMLElement | null;
+
   constructor() {
     this.initEditor();
+    this.syncEngine = new SyncEngine(this.adapter);
+    this.syncEngine.subscribe((status, progress) => this.handleSyncStateChange(status, progress));
     this.bindEvents();
     this.bindModals();
     this.checkBrowserSupport();
@@ -234,6 +266,8 @@ class BasaltApp {
     this.btnOpenTrash.addEventListener('click', () => this.openTrashModal());
     this.btnOpenSettings.addEventListener('click', () => this.openSettingsModal());
     this.btnOpenInfo.addEventListener('click', () => this.openInfoModal());
+    this.btnOpenSync?.addEventListener('click', () => this.openSyncModal());
+    this.btnQuickSync?.addEventListener('click', () => this.handleTriggerSync());
 
     // Глобальные горячие клавиши: Ctrl + ArrowUp/ArrowDown (навигация по дереву) и Ctrl + Enter (открыть/закрыть)
     window.addEventListener(
@@ -477,6 +511,38 @@ class BasaltApp {
         }
       });
     }
+
+    // Вкладки синхронизации (Яндекс Диск / WebDAV)
+    this.syncTabYandex?.addEventListener('click', () => {
+      this.syncTabYandex?.classList.add('active');
+      this.syncTabWebdav?.classList.remove('active');
+      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'flex';
+      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'none';
+    });
+
+    this.syncTabWebdav?.addEventListener('click', () => {
+      this.syncTabWebdav?.classList.add('active');
+      this.syncTabYandex?.classList.remove('active');
+      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'flex';
+      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'none';
+    });
+
+    // Сохранение настроек синхронизации
+    this.btnSaveSyncSettings?.addEventListener('click', () => {
+      this.saveSyncFormSettings();
+      this.setSaveStatus(t('saveStatusSaved'), false);
+    });
+
+    // Проверка подключения к облаку
+    this.btnTestSyncConnection?.addEventListener('click', () => {
+      this.handleTestSyncConnection();
+    });
+
+    // Запуск синхронизации из модального окна
+    this.btnTriggerSync?.addEventListener('click', () => {
+      this.saveSyncFormSettings();
+      this.handleTriggerSync();
+    });
   }
 
   private openSettingsModal() {
@@ -699,6 +765,239 @@ class BasaltApp {
     this.trashBadgeCount.textContent = String(count);
   }
 
+  // ==========================================================================
+  // ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (Яндекс Диск REST API / WebDAV)
+  // ==========================================================================
+  private openSyncModal() {
+    const config = this.syncEngine.getConfig();
+
+    if (config.provider === 'webdav') {
+      this.syncTabWebdav?.classList.add('active');
+      this.syncTabYandex?.classList.remove('active');
+      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'flex';
+      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'none';
+    } else {
+      this.syncTabYandex?.classList.add('active');
+      this.syncTabWebdav?.classList.remove('active');
+      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'flex';
+      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'none';
+    }
+
+    if (this.syncYandexToken) this.syncYandexToken.value = config.yandexToken || '';
+    if (this.syncYandexPath) this.syncYandexPath.value = config.yandexRemotePath || 'disk:/Basalt';
+
+    if (this.syncWebdavUrl) this.syncWebdavUrl.value = config.webdavUrl || '';
+    if (this.syncWebdavUser) this.syncWebdavUser.value = config.webdavUsername || '';
+    if (this.syncWebdavPass) this.syncWebdavPass.value = config.webdavPassword || '';
+    if (this.syncWebdavPath) this.syncWebdavPath.value = config.webdavRemotePath || '/Basalt';
+
+    if (this.syncAutoSave) this.syncAutoSave.checked = Boolean(config.autoSyncOnSave);
+
+    if (this.syncLastTimeText) {
+      this.syncLastTimeText.textContent = config.lastSyncTime
+        ? new Date(config.lastSyncTime).toLocaleString(settingsManager.get().language)
+        : t('syncNever');
+    }
+
+    if (this.syncStatusText) {
+      if (config.lastSyncStatus === 'success') {
+        const stats = config.lastSyncStats;
+        this.syncStatusText.textContent = stats
+          ? `${t('syncSuccess')} (↑${stats.uploaded} ↓${stats.downloaded} ✕${stats.deleted})`
+          : t('syncSuccess');
+        this.syncStatusText.style.color = '#10b981';
+      } else if (config.lastSyncStatus === 'error') {
+        this.syncStatusText.textContent = config.lastSyncError || t('syncError');
+        this.syncStatusText.style.color = '#ef4444';
+      } else {
+        this.syncStatusText.textContent = t('syncNotConnected');
+        this.syncStatusText.style.color = '';
+      }
+    }
+
+    if (this.syncAccountRow) this.syncAccountRow.style.display = 'none';
+    if (this.syncProgressWrap) this.syncProgressWrap.style.display = 'none';
+
+    if (this.modalSync) this.modalSync.style.display = 'flex';
+  }
+
+  private saveSyncFormSettings() {
+    const isWebdav = this.syncTabWebdav?.classList.contains('active');
+    const updated = {
+      provider: (isWebdav ? 'webdav' : 'yandex') as 'yandex' | 'webdav',
+      yandexToken: this.syncYandexToken?.value.trim() || '',
+      yandexRemotePath: this.syncYandexPath?.value.trim() || 'disk:/Basalt',
+      webdavUrl: this.syncWebdavUrl?.value.trim() || '',
+      webdavUsername: this.syncWebdavUser?.value.trim() || '',
+      webdavPassword: this.syncWebdavPass?.value || '',
+      webdavRemotePath: this.syncWebdavPath?.value.trim() || '/Basalt',
+      autoSyncOnSave: Boolean(this.syncAutoSave?.checked),
+      enabled: Boolean(
+        (isWebdav && this.syncWebdavUrl?.value.trim()) ||
+          (!isWebdav && this.syncYandexToken?.value.trim())
+      ),
+    };
+    this.syncEngine.saveConfig(updated);
+  }
+
+  private async handleTestSyncConnection() {
+    this.saveSyncFormSettings();
+
+    if (this.syncStatusText) {
+      this.syncStatusText.textContent = t('syncTesting');
+      this.syncStatusText.style.color = 'var(--color-accent)';
+    }
+
+    try {
+      const res = await this.syncEngine.testConnection();
+      if (res.success) {
+        if (this.syncStatusText) {
+          this.syncStatusText.textContent = t('syncTestSuccess');
+          this.syncStatusText.style.color = '#10b981';
+        }
+        if (res.account && this.syncAccountRow && this.syncAccountText) {
+          let desc = res.account.displayName || res.account.login || '';
+          if (res.account.totalSpace) {
+            const usedGb = ((res.account.usedSpace || 0) / 1073741824).toFixed(1);
+            const totalGb = (res.account.totalSpace / 1073741824).toFixed(1);
+            desc += desc ? ` (${usedGb} / ${totalGb} GB)` : `${usedGb} / ${totalGb} GB`;
+          }
+          this.syncAccountText.textContent = desc || 'OK';
+          this.syncAccountRow.style.display = 'flex';
+        }
+      } else {
+        if (this.syncStatusText) {
+          this.syncStatusText.textContent = res.error || t('syncTestFailed');
+          this.syncStatusText.style.color = '#ef4444';
+        }
+        if (this.syncAccountRow) this.syncAccountRow.style.display = 'none';
+      }
+    } catch (err: any) {
+      if (this.syncStatusText) {
+        this.syncStatusText.textContent = err.message || t('syncTestFailed');
+        this.syncStatusText.style.color = '#ef4444';
+      }
+      if (this.syncAccountRow) this.syncAccountRow.style.display = 'none';
+    }
+  }
+
+  private async handleTriggerSync() {
+    if (!this.adapter.isOpen()) {
+      alert(t('syncOpenVaultFirst'));
+      return;
+    }
+
+    try {
+      if (this.syncStatusText) {
+        this.syncStatusText.textContent = t('syncInProgress');
+        this.syncStatusText.style.color = 'var(--color-accent)';
+      }
+
+      const result = await this.syncEngine.sync();
+
+      // Обновляем дерево файлов
+      this.allEntries = await this.adapter.refresh();
+      this.renderFilteredTree();
+
+      // Если текущий открытый файл изменился, перезагрузим его в редакторе
+      if (this.currentFile && result.downloaded.includes(this.currentFile.path)) {
+        try {
+          const fresh = await this.adapter.readFile(this.currentFile.path);
+          this.editor?.setContent(fresh);
+          this.updatePreview(fresh);
+        } catch {
+          // Игнорируем
+        }
+      }
+
+      if (this.syncLastTimeText) {
+        this.syncLastTimeText.textContent = new Date().toLocaleString(
+          settingsManager.get().language
+        );
+      }
+
+      if (this.syncStatusText) {
+        const summary = `${t('syncCompleted')} (↑${result.uploaded.length} ↓${result.downloaded.length} ✕${result.deleted.length})`;
+        this.syncStatusText.textContent = summary;
+        this.syncStatusText.style.color = '#10b981';
+      }
+      this.setSaveStatus(t('saveStatusSaved'), false);
+    } catch (err: any) {
+      console.error('Синхронизация завершилась с ошибкой:', err);
+      if (this.syncStatusText) {
+        this.syncStatusText.textContent = err.message || t('syncError');
+        this.syncStatusText.style.color = '#ef4444';
+      }
+      this.setSaveStatus(t('syncError'), false);
+    }
+  }
+
+  private handleSyncStateChange(status: SyncStatus, progress?: SyncProgress) {
+    if (this.btnQuickSync) {
+      if (status === 'syncing') {
+        this.btnQuickSync.classList.add('syncing');
+      } else {
+        this.btnQuickSync.classList.remove('syncing');
+      }
+    }
+
+    if (this.syncStatusIndicator) {
+      this.syncStatusIndicator.classList.remove(
+        'status-idle',
+        'status-syncing',
+        'status-success',
+        'status-error'
+      );
+      this.syncStatusIndicator.classList.add(`status-${status}`);
+
+      const titles: Record<SyncStatus, string> = {
+        idle: t('sync'),
+        checking: t('syncTesting'),
+        syncing: t('syncInProgress'),
+        success: t('syncSuccess'),
+        error: t('syncError'),
+      };
+      this.syncStatusIndicator.title = titles[status] || t('sync');
+    }
+
+    if (this.syncProgressWrap && this.syncProgressLabel) {
+      if (status === 'syncing') {
+        this.syncProgressWrap.style.display = 'block';
+        if (progress && progress.total > 0) {
+          this.syncProgressLabel.textContent = `${progress.stage} (${progress.current}/${progress.total})`;
+        } else if (progress) {
+          this.syncProgressLabel.textContent = progress.stage;
+        } else {
+          this.syncProgressLabel.textContent = t('syncInProgress');
+        }
+      } else {
+        this.syncProgressWrap.style.display = 'none';
+      }
+    }
+  }
+
+  private triggerDebouncedAutoSync() {
+    const cfg = this.syncEngine.getConfig();
+    if (!cfg.autoSyncOnSave || !this.adapter.isOpen()) return;
+
+    if (this.autoSyncTimeout !== null) {
+      window.clearTimeout(this.autoSyncTimeout);
+    }
+
+    this.autoSyncTimeout = window.setTimeout(async () => {
+      this.autoSyncTimeout = null;
+      try {
+        const res = await this.syncEngine.sync();
+        if (res.downloaded.length > 0 || res.deleted.length > 0) {
+          this.allEntries = await this.adapter.refresh();
+          this.renderFilteredTree();
+        }
+      } catch (err) {
+        console.error('Ошибка авто-синхронизации:', err);
+      }
+    }, 4000);
+  }
+
   private getFilteredEntries(): FileEntry[] {
     let filtered = [...this.allEntries];
     const activeWs = settingsManager.get().activeWorkspace;
@@ -810,6 +1109,49 @@ class BasaltApp {
     this.btnOpenVault.title = this.adapter.isSupported() ? t('openFolder') : t('browserNotSupportedDesc');
     const btnClearSearch = document.getElementById('btn-clear-search');
     if (btnClearSearch) btnClearSearch.title = t('clearSearch');
+
+    // Облачная синхронизация: модальное окно и кнопки
+    const txtSyncHeading = document.getElementById('txt-sync-heading');
+    if (txtSyncHeading) txtSyncHeading.textContent = t('syncTitle');
+    const txtSyncSubheading = document.getElementById('txt-sync-subheading');
+    if (txtSyncSubheading) txtSyncSubheading.textContent = t('syncSubtitle');
+    const tabYandex = document.getElementById('sync-tab-yandex');
+    if (tabYandex) tabYandex.textContent = t('syncYandex');
+    const tabWebdav = document.getElementById('sync-tab-webdav');
+    if (tabWebdav) tabWebdav.textContent = t('syncWebDav');
+    const lblYandexToken = document.getElementById('lbl-yandex-token');
+    if (lblYandexToken) lblYandexToken.textContent = t('syncYandexToken');
+    const linkYandexGetToken = document.getElementById('link-yandex-get-token');
+    if (linkYandexGetToken) linkYandexGetToken.textContent = `${t('syncYandexTokenHelp')} ↗`;
+    const txtYandexHelp = document.getElementById('txt-yandex-help-desc');
+    if (txtYandexHelp) txtYandexHelp.textContent = t('syncYandexHelp');
+    const lblYandexPath = document.getElementById('lbl-yandex-path');
+    if (lblYandexPath) lblYandexPath.textContent = t('syncYandexPath');
+    const lblWebdavUrl = document.getElementById('lbl-webdav-url');
+    if (lblWebdavUrl) lblWebdavUrl.textContent = t('syncWebDavUrl');
+    const lblWebdavUser = document.getElementById('lbl-webdav-user');
+    if (lblWebdavUser) lblWebdavUser.textContent = t('syncWebDavUser');
+    const lblWebdavPass = document.getElementById('lbl-webdav-pass');
+    if (lblWebdavPass) lblWebdavPass.textContent = t('syncWebDavPass');
+    const lblWebdavPath = document.getElementById('lbl-webdav-path');
+    if (lblWebdavPath) lblWebdavPath.textContent = t('syncWebDavPath');
+    const lblSyncAuto = document.getElementById('lbl-sync-auto-save');
+    if (lblSyncAuto) lblSyncAuto.textContent = t('syncAutoSave');
+    const lblSyncStatus = document.getElementById('lbl-sync-status');
+    if (lblSyncStatus) lblSyncStatus.textContent = `${t('syncStatus')}:`;
+    const lblSyncAccount = document.getElementById('lbl-sync-account');
+    if (lblSyncAccount) lblSyncAccount.textContent = `${t('syncAccount')}:`;
+    const lblSyncLastTime = document.getElementById('lbl-sync-last-time');
+    if (lblSyncLastTime) lblSyncLastTime.textContent = `${t('syncLastTime')}:`;
+    const btnTestSync = document.getElementById('btn-test-sync-connection');
+    if (btnTestSync) btnTestSync.textContent = t('syncTestBtn');
+    const btnSaveSync = document.getElementById('btn-save-sync-settings');
+    if (btnSaveSync) btnSaveSync.textContent = t('saveSyncSettings');
+    const btnTriggerSync = document.getElementById('btn-trigger-sync');
+    if (btnTriggerSync) btnTriggerSync.textContent = t('syncBtn');
+
+    if (this.btnQuickSync) this.btnQuickSync.title = t('syncBtn');
+    if (this.btnOpenSync) this.btnOpenSync.title = t('syncTitle');
 
     // Обновляем счетчики слов и знаков
     this.handleStatsChange(this.lastStats);
@@ -1279,6 +1621,7 @@ class BasaltApp {
       metadataManager.touchNote(this.currentFile.path);
       this.updatePreview(content);
       this.setSaveStatus(t('saveStatusSaved'), false);
+      this.triggerDebouncedAutoSync();
     } catch (err) {
       console.error(t('saveStatusError'), err);
       this.setSaveStatus(t('saveStatusError'), false);
@@ -1482,7 +1825,8 @@ class BasaltApp {
       this.modalTrash?.style.display === 'flex' ||
       this.modalSettings?.style.display === 'flex' ||
       this.modalInfo?.style.display === 'flex' ||
-      this.modalIconPicker?.style.display === 'flex'
+      this.modalIconPicker?.style.display === 'flex' ||
+      this.modalSync?.style.display === 'flex'
     );
   }
 

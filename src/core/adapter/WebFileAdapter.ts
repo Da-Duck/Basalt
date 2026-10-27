@@ -111,6 +111,36 @@ export class WebFileAdapter implements FileSystemAdapter {
     await writable.close();
   }
 
+  /**
+   * Гарантированная запись файла: если файла или промежуточных папок нет,
+   * они автоматически создаются
+   */
+  async ensureFile(path: string, content: string): Promise<void> {
+    if (!this.dirHandle) throw new Error('Хранилище не открыто.');
+
+    const parts = path.split('/');
+    const filename = parts.pop()!;
+    let currentDir = this.dirHandle;
+    let currentPath = '';
+
+    for (const part of parts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      let dirHandle = this.dirHandles.get(currentPath);
+      if (!dirHandle) {
+        dirHandle = await currentDir.getDirectoryHandle(part, { create: true });
+        this.dirHandles.set(currentPath, dirHandle);
+      }
+      currentDir = dirHandle;
+    }
+
+    const fileHandle = await currentDir.getFileHandle(filename, { create: true });
+    this.fileHandles.set(path, fileHandle);
+
+    const writable = await (fileHandle as any).createWritable();
+    await writable.write(content);
+    await writable.close();
+  }
+
   async createFile(
     name: string,
     initialContent: string = '# Новая заметка\n\n',
