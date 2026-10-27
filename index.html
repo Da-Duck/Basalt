@@ -408,17 +408,29 @@
                 autocomplete="off"
               />
               <div class="sync-help-box">
-                <a
-                  href="https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabb9d67414298827913f37f715878"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="sync-link"
-                  id="link-yandex-get-token"
-                >
-                  Получить токен Яндекс Диска на oauth.yandex.ru ↗
-                </a>
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px;">
+                  <a
+                    href="https://yandex.ru/dev/disk/poligon/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="sync-link"
+                    id="link-yandex-get-token"
+                  >
+                    Получить токен на Полигоне Яндекс Диска (в 1 клик) ↗
+                  </a>
+                  <a
+                    href="https://oauth.yandex.ru/client/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="sync-link"
+                    id="link-yandex-create-app"
+                    style="font-size: 11px; opacity: 0.85;"
+                  >
+                    Создать собственное приложение в Яндекс OAuth ↗
+                  </a>
+                </div>
                 <p class="sync-help-desc" id="txt-yandex-help-desc">
-                  Токен сохраняется только локально в вашем браузере и используется для прямого обращения к облаку через REST API.
+                  Самый быстрый способ: откройте Полигон, нажмите вверху жёлтую кнопку «Получить OAuth-токен» и вставьте его сюда. Токен сохраняется только локально в вашем браузере.
                 </p>
               </div>
             </div>

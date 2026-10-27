@@ -1123,6 +1123,8 @@ class BasaltApp {
     if (lblYandexToken) lblYandexToken.textContent = t('syncYandexToken');
     const linkYandexGetToken = document.getElementById('link-yandex-get-token');
     if (linkYandexGetToken) linkYandexGetToken.textContent = `${t('syncYandexTokenHelp')} ↗`;
+    const linkYandexCreateApp = document.getElementById('link-yandex-create-app');
+    if (linkYandexCreateApp) linkYandexCreateApp.textContent = `${t('syncYandexCreateApp')} ↗`;
     const txtYandexHelp = document.getElementById('txt-yandex-help-desc');
     if (txtYandexHelp) txtYandexHelp.textContent = t('syncYandexHelp');
     const lblYandexPath = document.getElementById('lbl-yandex-path');
