@@ -15,7 +15,7 @@ export interface CloudAccountInfo {
 }
 
 export interface CloudProvider {
-  id: 'yandex' | 'webdav';
+  id: 'yandex';
   name: string;
   isAuthenticated(): boolean;
   testConnection(): Promise<{ success: boolean; error?: string; account?: CloudAccountInfo }>;
@@ -46,18 +46,12 @@ export interface SyncResult {
 
 export interface SyncConfig {
   enabled: boolean;
-  provider: 'yandex' | 'webdav';
+  provider: 'yandex';
   autoSyncOnSave: boolean;
 
   // Яндекс Диск
   yandexToken: string;
   yandexRemotePath: string; // По умолчанию "disk:/Basalt"
-
-  // WebDAV
-  webdavUrl: string;
-  webdavUsername: string;
-  webdavPassword: string;
-  webdavRemotePath: string; // По умолчанию "/Basalt"
 
   // Состояние
   lastSyncTime: number | null;
@@ -76,10 +70,6 @@ export const DEFAULT_SYNC_CONFIG: SyncConfig = {
   autoSyncOnSave: false,
   yandexToken: '',
   yandexRemotePath: 'disk:/Basalt',
-  webdavUrl: '',
-  webdavUsername: '',
-  webdavPassword: '',
-  webdavRemotePath: '/Basalt',
   lastSyncTime: null,
   lastSyncStatus: 'idle',
 };

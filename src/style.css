@@ -2167,37 +2167,100 @@ body.theme-light .slash-menu-badge {
 .sync-provider-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 14px;
+}
+
+/* Поля ввода Basalt (тёмные поля в тон темы) */
+.basalt-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-app);
+  color: var(--text-main);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.basalt-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(229, 169, 60, 0.2);
+}
+
+.basalt-input::placeholder {
+  color: var(--text-muted);
+}
+
+.basalt-input[type="password"] {
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 1px;
 }
 
 .sync-help-box {
-  margin-top: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg-app);
   border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.sync-link {
+.sync-instruction-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.sync-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg-app);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.sync-step-item strong {
+  color: var(--text-main);
+}
+
+.sync-inline-link {
   color: var(--accent);
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 500;
-  display: inline-block;
-  margin-bottom: 4px;
+  text-decoration: underline;
+  font-weight: 600;
 }
 
-.sync-link:hover {
-  text-decoration: underline;
+.sync-inline-link:hover {
   color: var(--accent-hover);
 }
 
 .sync-help-desc {
   font-size: 11px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
   margin: 0;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
 }
 
 .sync-status-card {

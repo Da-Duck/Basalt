@@ -120,23 +120,15 @@ class BasaltApp {
   private noteColorSwatches = document.getElementById('note-color-swatches') as HTMLElement | null;
   private btnResetColor = document.getElementById('btn-reset-color') as HTMLButtonElement | null;
 
-  // Облачная синхронизация
+  // Облачная синхронизация (Яндекс Диск)
   private syncEngine: SyncEngine;
   private autoSyncTimeout: number | null = null;
   private btnOpenSync = document.getElementById('btn-open-sync') as HTMLButtonElement | null;
   private btnQuickSync = document.getElementById('btn-quick-sync') as HTMLButtonElement | null;
   private syncStatusIndicator = document.getElementById('sync-status-indicator') as HTMLElement | null;
   private modalSync = document.getElementById('modal-sync') as HTMLElement | null;
-  private syncTabYandex = document.getElementById('sync-tab-yandex') as HTMLButtonElement | null;
-  private syncTabWebdav = document.getElementById('sync-tab-webdav') as HTMLButtonElement | null;
-  private syncSectionYandex = document.getElementById('sync-section-yandex') as HTMLElement | null;
-  private syncSectionWebdav = document.getElementById('sync-section-webdav') as HTMLElement | null;
   private syncYandexToken = document.getElementById('sync-yandex-token') as HTMLInputElement | null;
   private syncYandexPath = document.getElementById('sync-yandex-path') as HTMLInputElement | null;
-  private syncWebdavUrl = document.getElementById('sync-webdav-url') as HTMLInputElement | null;
-  private syncWebdavUser = document.getElementById('sync-webdav-user') as HTMLInputElement | null;
-  private syncWebdavPass = document.getElementById('sync-webdav-pass') as HTMLInputElement | null;
-  private syncWebdavPath = document.getElementById('sync-webdav-path') as HTMLInputElement | null;
   private syncAutoSave = document.getElementById('sync-auto-save') as HTMLInputElement | null;
   private btnTestSyncConnection = document.getElementById('btn-test-sync-connection') as HTMLButtonElement | null;
   private btnSaveSyncSettings = document.getElementById('btn-save-sync-settings') as HTMLButtonElement | null;
@@ -512,21 +504,6 @@ class BasaltApp {
       });
     }
 
-    // Вкладки синхронизации (Яндекс Диск / WebDAV)
-    this.syncTabYandex?.addEventListener('click', () => {
-      this.syncTabYandex?.classList.add('active');
-      this.syncTabWebdav?.classList.remove('active');
-      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'flex';
-      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'none';
-    });
-
-    this.syncTabWebdav?.addEventListener('click', () => {
-      this.syncTabWebdav?.classList.add('active');
-      this.syncTabYandex?.classList.remove('active');
-      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'flex';
-      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'none';
-    });
-
     // Сохранение настроек синхронизации
     this.btnSaveSyncSettings?.addEventListener('click', () => {
       this.saveSyncFormSettings();
@@ -766,31 +743,13 @@ class BasaltApp {
   }
 
   // ==========================================================================
-  // ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (Яндекс Диск REST API / WebDAV)
+  // ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (Яндекс Диск REST API)
   // ==========================================================================
   private openSyncModal() {
     const config = this.syncEngine.getConfig();
 
-    if (config.provider === 'webdav') {
-      this.syncTabWebdav?.classList.add('active');
-      this.syncTabYandex?.classList.remove('active');
-      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'flex';
-      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'none';
-    } else {
-      this.syncTabYandex?.classList.add('active');
-      this.syncTabWebdav?.classList.remove('active');
-      if (this.syncSectionYandex) this.syncSectionYandex.style.display = 'flex';
-      if (this.syncSectionWebdav) this.syncSectionWebdav.style.display = 'none';
-    }
-
     if (this.syncYandexToken) this.syncYandexToken.value = config.yandexToken || '';
     if (this.syncYandexPath) this.syncYandexPath.value = config.yandexRemotePath || 'disk:/Basalt';
-
-    if (this.syncWebdavUrl) this.syncWebdavUrl.value = config.webdavUrl || '';
-    if (this.syncWebdavUser) this.syncWebdavUser.value = config.webdavUsername || '';
-    if (this.syncWebdavPass) this.syncWebdavPass.value = config.webdavPassword || '';
-    if (this.syncWebdavPath) this.syncWebdavPath.value = config.webdavRemotePath || '/Basalt';
-
     if (this.syncAutoSave) this.syncAutoSave.checked = Boolean(config.autoSyncOnSave);
 
     if (this.syncLastTimeText) {
@@ -822,20 +781,13 @@ class BasaltApp {
   }
 
   private saveSyncFormSettings() {
-    const isWebdav = this.syncTabWebdav?.classList.contains('active');
+    const token = this.syncYandexToken?.value.trim() || '';
     const updated = {
-      provider: (isWebdav ? 'webdav' : 'yandex') as 'yandex' | 'webdav',
-      yandexToken: this.syncYandexToken?.value.trim() || '',
+      provider: 'yandex' as const,
+      yandexToken: token,
       yandexRemotePath: this.syncYandexPath?.value.trim() || 'disk:/Basalt',
-      webdavUrl: this.syncWebdavUrl?.value.trim() || '',
-      webdavUsername: this.syncWebdavUser?.value.trim() || '',
-      webdavPassword: this.syncWebdavPass?.value || '',
-      webdavRemotePath: this.syncWebdavPath?.value.trim() || '/Basalt',
       autoSyncOnSave: Boolean(this.syncAutoSave?.checked),
-      enabled: Boolean(
-        (isWebdav && this.syncWebdavUrl?.value.trim()) ||
-          (!isWebdav && this.syncYandexToken?.value.trim())
-      ),
+      enabled: Boolean(token),
     };
     this.syncEngine.saveConfig(updated);
   }
@@ -1115,28 +1067,22 @@ class BasaltApp {
     if (txtSyncHeading) txtSyncHeading.textContent = t('syncTitle');
     const txtSyncSubheading = document.getElementById('txt-sync-subheading');
     if (txtSyncSubheading) txtSyncSubheading.textContent = t('syncSubtitle');
-    const tabYandex = document.getElementById('sync-tab-yandex');
-    if (tabYandex) tabYandex.textContent = t('syncYandex');
-    const tabWebdav = document.getElementById('sync-tab-webdav');
-    if (tabWebdav) tabWebdav.textContent = t('syncWebDav');
     const lblYandexToken = document.getElementById('lbl-yandex-token');
     if (lblYandexToken) lblYandexToken.textContent = t('syncYandexToken');
-    const linkYandexGetToken = document.getElementById('link-yandex-get-token');
-    if (linkYandexGetToken) linkYandexGetToken.textContent = `${t('syncYandexTokenHelp')} ↗`;
-    const linkYandexCreateApp = document.getElementById('link-yandex-create-app');
-    if (linkYandexCreateApp) linkYandexCreateApp.textContent = `${t('syncYandexCreateApp')} ↗`;
+    const txtStep1 = document.getElementById('txt-sync-step-1');
+    if (txtStep1) txtStep1.textContent = t('syncStep1Text');
+    const linkPolygon = document.getElementById('link-yandex-polygon');
+    if (linkPolygon) linkPolygon.textContent = t('syncStep1Link');
+    const txtStep2 = document.getElementById('txt-sync-step-2');
+    if (txtStep2) {
+      txtStep2.innerHTML = `${t('syncStep2Text').replace('«Получить OAuth-токен»', '<strong>«Получить OAuth-токен»</strong>')}`;
+    }
+    const txtStep3 = document.getElementById('txt-sync-step-3');
+    if (txtStep3) txtStep3.textContent = t('syncStep3Text');
     const txtYandexHelp = document.getElementById('txt-yandex-help-desc');
     if (txtYandexHelp) txtYandexHelp.textContent = t('syncYandexHelp');
     const lblYandexPath = document.getElementById('lbl-yandex-path');
     if (lblYandexPath) lblYandexPath.textContent = t('syncYandexPath');
-    const lblWebdavUrl = document.getElementById('lbl-webdav-url');
-    if (lblWebdavUrl) lblWebdavUrl.textContent = t('syncWebDavUrl');
-    const lblWebdavUser = document.getElementById('lbl-webdav-user');
-    if (lblWebdavUser) lblWebdavUser.textContent = t('syncWebDavUser');
-    const lblWebdavPass = document.getElementById('lbl-webdav-pass');
-    if (lblWebdavPass) lblWebdavPass.textContent = t('syncWebDavPass');
-    const lblWebdavPath = document.getElementById('lbl-webdav-path');
-    if (lblWebdavPath) lblWebdavPath.textContent = t('syncWebDavPath');
     const lblSyncAuto = document.getElementById('lbl-sync-auto-save');
     if (lblSyncAuto) lblSyncAuto.textContent = t('syncAutoSave');
     const lblSyncStatus = document.getElementById('lbl-sync-status');

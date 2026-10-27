@@ -380,24 +380,13 @@
         <div class="modal-header">
           <div class="sync-modal-title-box">
             <h3 id="txt-sync-heading">Облачная синхронизация</h3>
-            <span class="modal-subtitle" id="txt-sync-subheading">Бесплатный обмен заметками через ваше облако</span>
+            <span class="modal-subtitle" id="txt-sync-subheading">Бесплатная синхронизация через ваш Яндекс Диск</span>
           </div>
           <button class="modal-close-btn" data-close="modal-sync">✕</button>
         </div>
 
         <div class="modal-body">
-          <!-- Вкладки провайдеров: Яндекс Диск vs WebDAV -->
-          <div class="icon-tabs-nav">
-            <button class="icon-tab-btn active" id="sync-tab-yandex" data-sync-provider="yandex">
-              Яндекс Диск
-            </button>
-            <button class="icon-tab-btn" id="sync-tab-webdav" data-sync-provider="webdav">
-              WebDAV (Nextcloud)
-            </button>
-          </div>
-
-          <!-- Секция Яндекс Диска -->
-          <div id="sync-section-yandex" class="sync-provider-section">
+          <div class="sync-provider-section">
             <div class="settings-group">
               <label class="settings-label" id="lbl-yandex-token">OAuth-токен Яндекс Диска</label>
               <input
@@ -408,29 +397,33 @@
                 autocomplete="off"
               />
               <div class="sync-help-box">
-                <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px;">
-                  <a
-                    href="https://yandex.ru/dev/disk/poligon/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="sync-link"
-                    id="link-yandex-get-token"
-                  >
-                    Получить токен на Полигоне Яндекс Диска (в 1 клик) ↗
-                  </a>
-                  <a
-                    href="https://oauth.yandex.ru/client/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="sync-link"
-                    id="link-yandex-create-app"
-                    style="font-size: 11px; opacity: 0.85;"
-                  >
-                    Создать собственное приложение в Яндекс OAuth ↗
-                  </a>
+                <div class="sync-instruction-steps">
+                  <div class="sync-step-item">
+                    <span class="sync-step-num">1</span>
+                    <span>
+                      <span id="txt-sync-step-1">Перейдите на</span>
+                      <a
+                        href="https://yandex.ru/dev/disk/poligon/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="sync-inline-link"
+                        id="link-yandex-polygon"
+                      >
+                        Полигон Яндекс Диска ↗
+                      </a>
+                    </span>
+                  </div>
+                  <div class="sync-step-item">
+                    <span class="sync-step-num">2</span>
+                    <span id="txt-sync-step-2">Нажмите вверху страницы жёлтую кнопку <strong>«Получить OAuth-токен»</strong></span>
+                  </div>
+                  <div class="sync-step-item">
+                    <span class="sync-step-num">3</span>
+                    <span id="txt-sync-step-3">Разрешите доступ, скопируйте появившийся код и вставьте в поле выше</span>
+                  </div>
                 </div>
                 <p class="sync-help-desc" id="txt-yandex-help-desc">
-                  Самый быстрый способ: откройте Полигон, нажмите вверху жёлтую кнопку «Получить OAuth-токен» и вставьте его сюда. Токен сохраняется только локально в вашем браузере.
+                  Токен сохраняется исключительно локально в вашем браузере и используется для прямого обращения к облаку через REST API.
                 </p>
               </div>
             </div>
@@ -443,50 +436,6 @@
                 class="basalt-input"
                 value="disk:/Basalt"
                 placeholder="disk:/Basalt"
-              />
-            </div>
-          </div>
-
-          <!-- Секция WebDAV -->
-          <div id="sync-section-webdav" class="sync-provider-section" style="display: none;">
-            <div class="settings-group">
-              <label class="settings-label" id="lbl-webdav-url">URL WebDAV-сервера</label>
-              <input
-                type="url"
-                id="sync-webdav-url"
-                class="basalt-input"
-                placeholder="https://cloud.example.com/remote.php/dav/files/user/"
-              />
-            </div>
-
-            <div class="settings-group">
-              <label class="settings-label" id="lbl-webdav-user">Логин / Пользователь</label>
-              <input
-                type="text"
-                id="sync-webdav-user"
-                class="basalt-input"
-                placeholder="username"
-              />
-            </div>
-
-            <div class="settings-group">
-              <label class="settings-label" id="lbl-webdav-pass">Пароль приложения</label>
-              <input
-                type="password"
-                id="sync-webdav-pass"
-                class="basalt-input"
-                placeholder="••••••••••••"
-              />
-            </div>
-
-            <div class="settings-group">
-              <label class="settings-label" id="lbl-webdav-path">Папка на сервере</label>
-              <input
-                type="text"
-                id="sync-webdav-path"
-                class="basalt-input"
-                value="/Basalt"
-                placeholder="/Basalt"
               />
             </div>
           </div>

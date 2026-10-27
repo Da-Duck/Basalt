@@ -9,7 +9,6 @@ import type {
 } from './types';
 import { DEFAULT_SYNC_CONFIG } from './types';
 import { YandexDiskProvider } from './YandexDiskProvider';
-import { WebDavProvider } from './WebDavProvider';
 
 interface ManifestEntry {
   lastModified: number;
@@ -74,19 +73,10 @@ export class SyncEngine {
   }
 
   private updateProvider() {
-    if (this.config.provider === 'yandex') {
-      this.currentProvider = new YandexDiskProvider(
-        this.config.yandexToken,
-        this.config.yandexRemotePath || 'disk:/Basalt'
-      );
-    } else {
-      this.currentProvider = new WebDavProvider(
-        this.config.webdavUrl,
-        this.config.webdavUsername,
-        this.config.webdavPassword,
-        this.config.webdavRemotePath || '/Basalt'
-      );
-    }
+    this.currentProvider = new YandexDiskProvider(
+      this.config.yandexToken,
+      this.config.yandexRemotePath || 'disk:/Basalt'
+    );
   }
 
   public getProvider(): CloudProvider | null {
