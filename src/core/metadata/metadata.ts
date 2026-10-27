@@ -132,14 +132,25 @@ class MetadataManager {
   // Привязка файлового адаптера хранилища и чтение .basalt/metadata.json
   public async attachAdapter(adapter: FileSystemAdapter): Promise<void> {
     this.adapter = adapter;
+    const loaded = await this.reloadFromVault();
+    if (!loaded) {
+      // Файла метаданных ещё нет в хранилище — инициализируем и сохраняем явно
+      this.data.vaultName = adapter.getVaultName();
+      await this.saveToVaultFile();
+    }
+  }
+
+  // Перезагрузка метаданных из файла .basalt/metadata.json (например, после синхронизации)
+  public async reloadFromVault(): Promise<boolean> {
+    if (!this.adapter || !this.adapter.isOpen()) return false;
 
     try {
-      const vaultContent = await adapter.readVaultMetadata();
+      const vaultContent = await this.adapter.readVaultMetadata();
       if (vaultContent) {
         const parsed = JSON.parse(vaultContent);
         this.data = {
           version: parsed.version || 1,
-          vaultName: adapter.getVaultName(),
+          vaultName: this.adapter.getVaultName(),
           updatedAt: parsed.updatedAt || Date.now(),
           updatedAtISO: parsed.updatedAtISO || new Date().toISOString(),
           notes: parsed.notes || {},
@@ -147,16 +158,12 @@ class MetadataManager {
           trash: parsed.trash || [],
         };
         this.saveLocalBackup();
-      } else {
-        // Файла метаданных ещё нет в хранилище — инициализируем и сохраняем явно
-        this.data.vaultName = adapter.getVaultName();
-        this.data.updatedAt = Date.now();
-        this.data.updatedAtISO = new Date().toISOString();
-        await this.saveToVaultFile();
+        return true;
       }
     } catch (err) {
-      console.warn('Не удалось загрузить .basalt/metadata.json, используется локальная копия:', err);
+      console.warn('Не удалось загрузить .basalt/metadata.json:', err);
     }
+    return false;
   }
 
   // Сохранение файла метаданных .basalt/metadata.json в папке хранилища
@@ -257,24 +264,32 @@ class MetadataManager {
 
   // === Даты и характеристики заметки ===
   public touchNote(path: string, createdAt?: number) {
-    const now = Date.now();
     const existing = this.data.notes[path];
-
     if (!existing) {
-      const created = createdAt || now;
+      const created = createdAt || Date.now();
       this.data.notes[path] = {
         createdAt: created,
         createdAtISO: new Date(created).toISOString(),
+        updatedAt: created,
+        updatedAtISO: new Date(created).toISOString(),
+      };
+      this.save();
+    }
+  }
+
+  public touchNoteEdited(path: string) {
+    const now = Date.now();
+    const existing = this.data.notes[path];
+    if (!existing) {
+      this.data.notes[path] = {
+        createdAt: now,
+        createdAtISO: new Date(now).toISOString(),
         updatedAt: now,
         updatedAtISO: new Date(now).toISOString(),
       };
     } else {
       existing.updatedAt = now;
       existing.updatedAtISO = new Date(now).toISOString();
-      if (createdAt && !existing.createdAt) {
-        existing.createdAt = createdAt;
-        existing.createdAtISO = new Date(createdAt).toISOString();
-      }
     }
     this.save();
   }

@@ -173,20 +173,6 @@ export class SyncEngine {
         });
       });
 
-      // Также добавим .basalt/metadata.json, если он существует
-      try {
-        const metaContent = await this.adapter.readVaultMetadata();
-        if (metaContent) {
-          localMap.set('.basalt/metadata.json', {
-            path: '.basalt/metadata.json',
-            lastModified: Date.now(),
-            size: metaContent.length,
-          });
-        }
-      } catch {
-        // Игнорируем отсутствие метаданных
-      }
-
       // 3. Сканируем удаленное облако
       this.notify('syncing', { stage: 'Получение списка файлов из облака...', current: 0, total: 1 });
       const remoteFiles = await this.currentProvider.listFiles();
@@ -198,21 +184,25 @@ export class SyncEngine {
         }
       });
 
-      // 4. Загружаем предыдущий манифест
+      // 4. Двусторонняя синхронизация метаданных (иконки и цвета заметок/папок)
+      await this.syncMetadata(remoteMap, result);
+
+      // 5. Загружаем предыдущий манифест
       const manifest = this.loadManifest();
       const newManifest: Record<string, ManifestEntry> = { ...manifest };
 
-      // Множество всех путей
+      // Множество всех путей (метаданные синхронизируются отдельно и исключаются)
       const allPaths = new Set<string>([
         ...localMap.keys(),
         ...remoteMap.keys(),
         ...Object.keys(manifest),
       ]);
+      allPaths.delete('.basalt/metadata.json');
 
       const totalItems = allPaths.size;
       let processed = 0;
 
-      // 5. Двустороннее сопоставление
+      // 6. Двустороннее сопоставление файлов заметок
       for (const relPath of allPaths) {
         processed++;
         this.notify('syncing', {
@@ -366,6 +356,138 @@ export class SyncEngine {
       await this.adapter.deleteFile(relPath);
     } catch (e) {
       console.warn(`Не удалось удалить локальный файл ${relPath}:`, e);
+    }
+  }
+
+  /**
+   * Интеллектуальная двусторонняя синхронизация метаданных заметок и папок (.basalt/metadata.json)
+   * Объединяет иконки, цвета и структуру без потери данных на обеих сторонах
+   */
+  private async syncMetadata(remoteMap: Map<string, CloudFileInfo>, result: SyncResult): Promise<void> {
+    if (!this.currentProvider) return;
+
+    const META_PATH = '.basalt/metadata.json';
+    this.notify('syncing', { stage: 'Синхронизация метаданных (иконки и цвета)...', current: 0, total: 1 });
+
+    try {
+      let localContent: string | null = null;
+      try {
+        localContent = await this.adapter.readVaultMetadata();
+      } catch (err) {
+        console.warn('Не удалось прочитать локальные метаданные:', err);
+      }
+
+      let remoteContent: string | null = null;
+      const remoteInfo = remoteMap.get(META_PATH);
+      if (remoteInfo) {
+        try {
+          remoteContent = await this.currentProvider.readFile(META_PATH);
+        } catch (err) {
+          console.warn('Не удалось прочитать метаданные из облака:', err);
+        }
+      }
+
+      // Случай 1: Метаданные есть и локально, и в облаке -> Объединяем (Merge)
+      if (localContent && remoteContent) {
+        let localData: any = {};
+        let remoteData: any = {};
+
+        try { localData = JSON.parse(localContent); } catch {}
+        try { remoteData = JSON.parse(remoteContent); } catch {}
+
+        const mergedNotes: Record<string, any> = {
+          ...(remoteData.notes || {}),
+          ...(localData.notes || {}),
+        };
+
+        // Для заметок, присутствующих на обеих сторонах: выбираем версию с более поздним updatedAt
+        const allNoteKeys = new Set([
+          ...Object.keys(localData.notes || {}),
+          ...Object.keys(remoteData.notes || {}),
+        ]);
+        for (const key of allNoteKeys) {
+          const lNote = localData.notes?.[key];
+          const rNote = remoteData.notes?.[key];
+          if (lNote && rNote) {
+            const lHasVisual = Boolean(lNote.icon || lNote.color);
+            const rHasVisual = Boolean(rNote.icon || rNote.color);
+
+            if (lHasVisual && !rHasVisual) {
+              mergedNotes[key] = { ...rNote, ...lNote };
+            } else if (!lHasVisual && rHasVisual) {
+              mergedNotes[key] = { ...lNote, ...rNote };
+            } else {
+              mergedNotes[key] = (lNote.updatedAt || 0) >= (rNote.updatedAt || 0) ? lNote : rNote;
+            }
+          } else if (lNote) {
+            mergedNotes[key] = lNote;
+          } else if (rNote) {
+            mergedNotes[key] = rNote;
+          }
+        }
+
+        // Для папок: объединяем иконки
+        const mergedFolders: Record<string, any> = {
+          ...(remoteData.folders || {}),
+          ...(localData.folders || {}),
+        };
+        const allFolderKeys = new Set([
+          ...Object.keys(localData.folders || {}),
+          ...Object.keys(remoteData.folders || {}),
+        ]);
+        for (const key of allFolderKeys) {
+          const lFolder = localData.folders?.[key];
+          const rFolder = remoteData.folders?.[key];
+          if (lFolder && rFolder) {
+            mergedFolders[key] = lFolder.icon ? lFolder : rFolder;
+          }
+        }
+
+        // Корзина: объединение без дубликатов по ID
+        const trashMap = new Map<string, any>();
+        (remoteData.trash || []).forEach((item: any) => { if (item.id) trashMap.set(item.id, item); });
+        (localData.trash || []).forEach((item: any) => { if (item.id) trashMap.set(item.id, item); });
+
+        const maxUpdated = Math.max(
+          localData.updatedAt || 0,
+          remoteData.updatedAt || 0,
+          Date.now()
+        );
+
+        const mergedData = {
+          version: Math.max(localData.version || 1, remoteData.version || 1),
+          vaultName: this.adapter.getVaultName() || localData.vaultName || remoteData.vaultName || '',
+          updatedAt: maxUpdated,
+          updatedAtISO: new Date(maxUpdated).toISOString(),
+          notes: mergedNotes,
+          folders: mergedFolders,
+          trash: Array.from(trashMap.values()),
+        };
+
+        const mergedString = JSON.stringify(mergedData, null, 2);
+
+        // Записываем локально
+        await this.adapter.writeVaultMetadata(mergedString);
+
+        // Записываем в облако
+        await this.currentProvider.writeFile(META_PATH, mergedString);
+
+        result.uploaded.push(META_PATH);
+        result.downloaded.push(META_PATH);
+      }
+      // Случай 2: Метаданные есть только локально -> Выгружаем в облако
+      else if (localContent && !remoteContent) {
+        await this.currentProvider.writeFile(META_PATH, localContent);
+        result.uploaded.push(META_PATH);
+      }
+      // Случай 3: Метаданные есть только в облаке -> Скачиваем локально
+      else if (!localContent && remoteContent) {
+        await this.adapter.writeVaultMetadata(remoteContent);
+        result.downloaded.push(META_PATH);
+      }
+    } catch (metaErr: any) {
+      console.error('Ошибка синхронизации метаданных:', metaErr);
+      result.errors.push(`Метаданные: ${metaErr.message}`);
     }
   }
 }

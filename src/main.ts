@@ -847,9 +847,14 @@ class BasaltApp {
 
       const result = await this.syncEngine.sync();
 
-      // Обновляем дерево файлов
+      // Перезагружаем обновленные метаданные (иконки и цвета заметок и папок)
+      await metadataManager.reloadFromVault();
+
+      // Обновляем дерево файлов и оформление
       this.allEntries = await this.adapter.refresh();
       this.renderFilteredTree();
+      this.updateActiveFileIcon();
+      this.updateActiveFileNameColor();
 
       // Если текущий открытый файл изменился, перезагрузим его в редакторе
       if (this.currentFile && result.downloaded.includes(this.currentFile.path)) {
@@ -939,11 +944,12 @@ class BasaltApp {
     this.autoSyncTimeout = window.setTimeout(async () => {
       this.autoSyncTimeout = null;
       try {
-        const res = await this.syncEngine.sync();
-        if (res.downloaded.length > 0 || res.deleted.length > 0) {
-          this.allEntries = await this.adapter.refresh();
-          this.renderFilteredTree();
-        }
+        await this.syncEngine.sync();
+        await metadataManager.reloadFromVault();
+        this.allEntries = await this.adapter.refresh();
+        this.renderFilteredTree();
+        this.updateActiveFileIcon();
+        this.updateActiveFileNameColor();
       } catch (err) {
         console.error('Ошибка авто-синхронизации:', err);
       }
@@ -1566,7 +1572,7 @@ class BasaltApp {
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
       await this.adapter.writeFile(this.currentFile.path, content);
-      metadataManager.touchNote(this.currentFile.path);
+      metadataManager.touchNoteEdited(this.currentFile.path);
       this.updatePreview(content);
       this.setSaveStatus(t('saveStatusSaved'), false);
       this.triggerDebouncedAutoSync();
