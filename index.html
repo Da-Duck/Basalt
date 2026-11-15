@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Basalt</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=basalt-crystal" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=basalt-crystal" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -22,7 +22,7 @@
         <div class="sidebar-header">
           <div class="brand">
             <div class="brand-icon">
-              <img src="/logo.svg" alt="Basalt Logo" class="brand-logo-img" width="24" height="24" />
+              <img src="./logo.svg" alt="Basalt Logo" class="brand-logo-img" width="24" height="24" />
             </div>
             <div class="brand-text">
               <span class="brand-name">Basalt</span>
@@ -400,30 +400,53 @@
                 <div class="sync-instruction-steps">
                   <div class="sync-step-item">
                     <span class="sync-step-num">1</span>
-                    <span>
-                      <span id="txt-sync-step-1">Перейдите на</span>
+                    <div>
+                      <span id="txt-sync-step-1">Создайте приложение в</span>
                       <a
-                        href="https://yandex.ru/dev/disk/poligon/"
+                        href="https://oauth.yandex.ru/client/new"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="sync-inline-link"
-                        id="link-yandex-polygon"
+                        id="link-yandex-create-app"
                       >
-                        Полигон Яндекс Диска ↗
+                        Яндекс OAuth ↗
                       </a>
-                    </span>
+                      <div id="txt-sync-step-1-sub" style="font-size: 11px; margin-top: 3px; color: var(--text-muted); line-height: 1.4;">
+                        Платформы: «Веб-сервисы» &rarr; Redirect URI: <code>https://oauth.yandex.ru/verification_code</code><br />
+                        Доступ к данным: «Яндекс Диск REST API» &rarr; «Доступ ко всему Диску»
+                      </div>
+                    </div>
                   </div>
                   <div class="sync-step-item">
                     <span class="sync-step-num">2</span>
-                    <span id="txt-sync-step-2">Нажмите вверху страницы жёлтую кнопку <strong>«Получить OAuth-токен»</strong></span>
+                    <div style="flex: 1;">
+                      <span id="txt-sync-step-2">Вставьте полученный ClientID и откройте страницу авторизации:</span>
+                      <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        <input
+                          type="text"
+                          id="sync-yandex-client-id"
+                          class="basalt-input"
+                          placeholder="ClientID (например: 7a8b...)"
+                          style="flex: 1; padding: 6px 10px; font-size: 12px;"
+                        />
+                        <button
+                          type="button"
+                          id="btn-yandex-auth-link"
+                          class="basalt-btn basalt-btn-secondary"
+                          style="white-space: nowrap; padding: 6px 12px; font-size: 12px;"
+                        >
+                          Авторизоваться ↗
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div class="sync-step-item">
                     <span class="sync-step-num">3</span>
-                    <span id="txt-sync-step-3">Разрешите доступ, скопируйте появившийся код и вставьте в поле выше</span>
+                    <span id="txt-sync-step-3">Нажмите «Разрешить», скопируйте полученный токен (после <code>access_token=</code>) и вставьте в поле выше</span>
                   </div>
                 </div>
                 <p class="sync-help-desc" id="txt-yandex-help-desc">
-                  Токен сохраняется исключительно локально в вашем браузере и используется для прямого обращения к облаку через REST API.
+                  Токен сохраняется локально на вашем ПК и используется исключительно для прямого обмена с вашим Яндекс Диском по REST API.
                 </p>
               </div>
             </div>

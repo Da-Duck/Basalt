@@ -1,5 +1,6 @@
 import { WebFileAdapter } from './core/adapter/WebFileAdapter';
-import type { FileEntry } from './core/adapter/FileSystemAdapter';
+import { ElectronFileAdapter } from './core/adapter/ElectronFileAdapter';
+import type { FileEntry, FileSystemAdapter } from './core/adapter/FileSystemAdapter';
 import { BasaltEditor, type EditorStats } from './core/editor/editor';
 import {
   t,
@@ -48,7 +49,7 @@ const NOTE_COLOR_PALETTE = [
 ];
 
 class BasaltApp {
-  private adapter = new WebFileAdapter();
+  private adapter: FileSystemAdapter;
   private editor: BasaltEditor | null = null;
   private currentFile: FileEntry | null = null;
   private selectedFolder: string = '';
@@ -141,6 +142,12 @@ class BasaltApp {
   private syncProgressLabel = document.getElementById('sync-progress-label') as HTMLElement | null;
 
   constructor() {
+    if (typeof window !== 'undefined' && window.basaltDesktop?.isDesktop) {
+      this.adapter = new ElectronFileAdapter();
+    } else {
+      this.adapter = new WebFileAdapter();
+    }
+
     this.initEditor();
     this.syncEngine = new SyncEngine(this.adapter);
     this.syncEngine.subscribe((status, progress) => this.handleSyncStateChange(status, progress));
@@ -156,6 +163,15 @@ class BasaltApp {
     // Первоначальный рендеринг предпросмотра
     const initialDoc = this.editor?.getContent() || '';
     this.updatePreview(initialDoc);
+
+    // В приложении для ПК автоматически восстанавливаем последнее открытое хранилище
+    if (this.adapter instanceof ElectronFileAdapter) {
+      this.adapter.getLastVault().then(async (last) => {
+        if (last && last.path) {
+          await this.handleOpenDirectVault(last.path, last.name);
+        }
+      }).catch((err) => console.warn('Не удалось автоматически открыть последнее хранилище:', err));
+    }
   }
 
   private checkBrowserSupport() {
@@ -519,6 +535,20 @@ class BasaltApp {
     this.btnTriggerSync?.addEventListener('click', () => {
       this.saveSyncFormSettings();
       this.handleTriggerSync();
+    });
+
+    // Кнопка авторизации Яндекс OAuth по Client ID
+    const btnYandexAuthLink = document.getElementById('btn-yandex-auth-link');
+    const inputYandexClientId = document.getElementById('sync-yandex-client-id') as HTMLInputElement | null;
+    btnYandexAuthLink?.addEventListener('click', () => {
+      const clientId = inputYandexClientId?.value.trim();
+      if (!clientId) {
+        alert(t('syncEnterClientIdPrompt'));
+        inputYandexClientId?.focus();
+        return;
+      }
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${encodeURIComponent(clientId)}`;
+      window.open(authUrl, '_blank');
     });
   }
 
@@ -1077,14 +1107,18 @@ class BasaltApp {
     if (lblYandexToken) lblYandexToken.textContent = t('syncYandexToken');
     const txtStep1 = document.getElementById('txt-sync-step-1');
     if (txtStep1) txtStep1.textContent = t('syncStep1Text');
-    const linkPolygon = document.getElementById('link-yandex-polygon');
-    if (linkPolygon) linkPolygon.textContent = t('syncStep1Link');
+    const linkCreateApp = document.getElementById('link-yandex-create-app');
+    if (linkCreateApp) linkCreateApp.textContent = t('syncStep1Link');
     const txtStep2 = document.getElementById('txt-sync-step-2');
-    if (txtStep2) {
-      txtStep2.innerHTML = `${t('syncStep2Text').replace('«Получить OAuth-токен»', '<strong>«Получить OAuth-токен»</strong>')}`;
-    }
+    if (txtStep2) txtStep2.textContent = t('syncStep2Text');
+    const btnAuthLink = document.getElementById('btn-yandex-auth-link');
+    if (btnAuthLink) btnAuthLink.textContent = t('syncStep2Btn');
+    const inputClientId = document.getElementById('sync-yandex-client-id') as HTMLInputElement | null;
+    if (inputClientId) inputClientId.placeholder = t('syncStep2Placeholder');
     const txtStep3 = document.getElementById('txt-sync-step-3');
-    if (txtStep3) txtStep3.textContent = t('syncStep3Text');
+    if (txtStep3) {
+      txtStep3.innerHTML = t('syncStep3Text').replace('access_token=', '<code>access_token=</code>');
+    }
     const txtYandexHelp = document.getElementById('txt-yandex-help-desc');
     if (txtYandexHelp) txtYandexHelp.textContent = t('syncYandexHelp');
     const lblYandexPath = document.getElementById('lbl-yandex-path');
@@ -1117,54 +1151,69 @@ class BasaltApp {
   // ==========================================================================
   // ХРАНИЛИЩЕ И ПРОСТРАНСТВА
   // ==========================================================================
+  private async initVaultWithEntries(entries: FileEntry[]) {
+    if (!this.adapter.isOpen()) {
+      this.setSaveStatus(t('saveStatusReady'), false);
+      return;
+    }
+
+    this.vaultTitle.textContent = this.adapter.getVaultName();
+    this.btnNewNote.disabled = false;
+    this.btnNewFolder.disabled = false;
+    this.searchInput.disabled = false;
+    this.workspaceSelect.disabled = false;
+    this.selectedFolder = '';
+
+    this.allEntries = entries;
+
+    // Привязываем файловый адаптер к менеджеру метаданных и синхронизируем .basalt/metadata.json
+    await metadataManager.attachAdapter(this.adapter);
+
+    // Инициализируем характеристики для существующих заметок хранилища
+    for (const entry of entries) {
+      if (!entry.isDirectory) {
+        metadataManager.touchNote(entry.path, entry.lastModified);
+      }
+    }
+
+    this.updateWorkspacesDropdown();
+    this.renderFilteredTree();
+
+    // Открываем первую заметку
+    const firstFile = entries.find((e) => !e.isDirectory);
+    if (firstFile) {
+      await this.openFile(firstFile);
+    } else {
+      const welcome = await this.adapter.createFile(
+        t('welcomeFileName'),
+        `# ${t('welcomeTitle')}\n\n${t('welcomeBody')}\n`
+      );
+      this.allEntries = await this.adapter.refresh();
+      this.updateWorkspacesDropdown();
+      this.renderFilteredTree();
+      await this.openFile(welcome);
+    }
+
+    this.setSaveStatus(t('saveStatusSaved'), false);
+  }
+
+  private async handleOpenDirectVault(targetPath: string, targetName?: string) {
+    if (!(this.adapter instanceof ElectronFileAdapter)) return;
+    try {
+      this.setSaveStatus(t('saveStatusSaving'), true);
+      const entries = await this.adapter.openVaultPath(targetPath, targetName);
+      await this.initVaultWithEntries(entries);
+    } catch (err: any) {
+      console.warn('Ошибка открытия последнего хранилища:', err);
+      this.setSaveStatus(t('saveStatusReady'), false);
+    }
+  }
+
   private async handleOpenVault() {
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
       const entries = await this.adapter.openVault();
-
-      if (!this.adapter.isOpen()) {
-        this.setSaveStatus(t('saveStatusReady'), false);
-        return;
-      }
-
-      this.vaultTitle.textContent = this.adapter.getVaultName();
-      this.btnNewNote.disabled = false;
-      this.btnNewFolder.disabled = false;
-      this.searchInput.disabled = false;
-      this.workspaceSelect.disabled = false;
-      this.selectedFolder = '';
-
-      this.allEntries = entries;
-
-      // Привязываем файловый адаптер к менеджеру метаданных и синхронизируем .basalt/metadata.json
-      await metadataManager.attachAdapter(this.adapter);
-
-      // Инициализируем характеристики для существующих заметок хранилища
-      for (const entry of entries) {
-        if (!entry.isDirectory) {
-          metadataManager.touchNote(entry.path, entry.lastModified);
-        }
-      }
-
-      this.updateWorkspacesDropdown();
-      this.renderFilteredTree();
-
-      // Открываем первую заметку
-      const firstFile = entries.find((e) => !e.isDirectory);
-      if (firstFile) {
-        await this.openFile(firstFile);
-      } else {
-        const welcome = await this.adapter.createFile(
-          t('welcomeFileName'),
-          `# ${t('welcomeTitle')}\n\n${t('welcomeBody')}\n`
-        );
-        this.allEntries = await this.adapter.refresh();
-        this.updateWorkspacesDropdown();
-        this.renderFilteredTree();
-        await this.openFile(welcome);
-      }
-
-      this.setSaveStatus(t('saveStatusSaved'), false);
+      await this.initVaultWithEntries(entries);
     } catch (err: any) {
       console.error(t('errorOpenVault'), err);
       alert(`${t('errorOpenVault')}: ${err.message}`);
