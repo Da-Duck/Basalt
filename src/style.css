@@ -626,7 +626,7 @@ body {
 
 .file-item.active {
   background: var(--accent-subtle);
-  color: #ffffff;
+  color: var(--text-main);
   font-weight: 550;
   border-left: 2.5px solid var(--accent);
 }
@@ -781,7 +781,7 @@ body.theme-light .file-item.tree-focused {
   align-items: center;
   justify-content: space-between;
   position: relative;
-  background: rgba(17, 20, 27, 0.95);
+  background: var(--bg-main);
   backdrop-filter: blur(12px);
   user-select: none;
 }
@@ -868,7 +868,7 @@ body.theme-light .file-item.tree-focused {
 .view-mode-selector {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--bg-card);
   padding: 2px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
@@ -1286,7 +1286,7 @@ body.theme-light .md-callout-caution .md-callout-header {
 .code-block-container {
   position: relative;
   margin: 1.2em 0;
-  background: #090b0e;
+  background: var(--bg-app);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
@@ -1889,26 +1889,163 @@ body.theme-light .md-callout-caution .md-callout-header {
   border-radius: 3px;
 }
 
+/* Кнопка с деструктивным действием (удаление) */
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.btn-danger:hover {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+}
+
+/* Поддержка тем для редактора CodeMirror */
+.cm-editor {
+  background-color: var(--bg-main) !important;
+  color: var(--text-main) !important;
+}
+
+.cm-editor .cm-scroller {
+  background-color: var(--bg-main) !important;
+}
+
+.cm-editor .cm-gutters {
+  background-color: var(--bg-main) !important;
+  color: var(--text-muted) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.cm-editor .cm-content {
+  color: var(--text-main) !important;
+  caret-color: var(--accent) !important;
+}
+
+.cm-editor .cm-activeLine {
+  background-color: var(--bg-card-hover) !important;
+}
+
+.cm-editor .cm-cursor {
+  border-left-color: var(--accent) !important;
+}
+
+/* OLED-тема (Глубокая тёмная) */
+body.theme-oled {
+  --bg-main: #000000;
+  --bg-app: #000000;
+  --bg-sidebar: #050507;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.22);
+}
+
+body.theme-oled .main-header {
+  background: #000000 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.theme-oled .basalt-sidebar {
+  background: #050507 !important;
+  border-right-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.theme-oled .modal-window {
+  background: #08080a !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+body.theme-oled .code-block-container {
+  background: #000000 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 /* Светлая тема */
 body.theme-light {
   --bg-app: #f1f5f9;
   --bg-sidebar: #f8fafc;
   --bg-main: #ffffff;
-  --bg-card: rgba(0, 0, 0, 0.03);
-  --bg-card-hover: rgba(0, 0, 0, 0.06);
-  --border-color: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.16);
+  --bg-card: rgba(0, 0, 0, 0.04);
+  --bg-card-hover: rgba(0, 0, 0, 0.08);
+  --border-color: rgba(0, 0, 0, 0.09);
+  --border-hover: rgba(0, 0, 0, 0.18);
   --text-main: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
 }
 
 body.theme-light .main-header {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff !important;
+  border-bottom-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+body.theme-light .basalt-sidebar {
+  background: #f8fafc !important;
+  border-right-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+body.theme-light .modal-window {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18) !important;
+}
+
+body.theme-light .modal-backdrop {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+body.theme-light .file-item.active {
+  color: #0f172a !important;
+  background: rgba(217, 119, 6, 0.15) !important;
+}
+
+body.theme-light .code-block-container {
+  background: #f8fafc !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 body.theme-light .guide-code-box {
-  color: #0f172a;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+body.theme-light .inline-code {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.theme-light .save-status-badge {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .view-mode-selector {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+body.theme-light .view-mode-btn {
+  color: #475569 !important;
+}
+
+body.theme-light .view-mode-btn.active {
+  background: #ffffff !important;
+  color: #d97706 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.theme-light .basalt-slash-menu {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.theme-light .slash-category-badge {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #64748b !important;
 }
 
 /* Мобильная адаптивность */

@@ -70,10 +70,14 @@ class SettingsManager {
     let bgMain = '#11141b';
     let bgSidebar = '#12151d';
     let bgApp = '#090b0e';
+    let bgCard = 'rgba(255, 255, 255, 0.03)';
+    let bgCardHover = 'rgba(255, 255, 255, 0.06)';
     let accent = '#e5a93c';
     let textMain = '#f8fafc';
     let textSecondary = '#94a3b8';
+    let textMuted = '#64748b';
     let borderColor = 'rgba(255, 255, 255, 0.08)';
+    let borderHover = 'rgba(255, 255, 255, 0.16)';
 
     switch (this.settings.themePreset) {
       case 'oled':
@@ -81,8 +85,14 @@ class SettingsManager {
         bgMain = '#000000';
         bgSidebar = '#050507';
         bgApp = '#000000';
+        bgCard = 'rgba(255, 255, 255, 0.04)';
+        bgCardHover = 'rgba(255, 255, 255, 0.08)';
         accent = '#e5a93c';
+        textMain = '#f8fafc';
+        textSecondary = '#94a3b8';
+        textMuted = '#71717a';
         borderColor = 'rgba(255, 255, 255, 0.12)';
+        borderHover = 'rgba(255, 255, 255, 0.22)';
         break;
 
       case 'light':
@@ -90,10 +100,14 @@ class SettingsManager {
         bgMain = '#ffffff';
         bgSidebar = '#f8fafc';
         bgApp = '#f1f5f9';
+        bgCard = 'rgba(0, 0, 0, 0.04)';
+        bgCardHover = 'rgba(0, 0, 0, 0.08)';
         accent = '#d97706';
         textMain = '#0f172a';
         textSecondary = '#475569';
-        borderColor = 'rgba(0, 0, 0, 0.08)';
+        textMuted = '#64748b';
+        borderColor = 'rgba(0, 0, 0, 0.09)';
+        borderHover = 'rgba(0, 0, 0, 0.18)';
         break;
 
       case 'custom':
@@ -108,17 +122,28 @@ class SettingsManager {
         bgMain = '#11141b';
         bgSidebar = '#12151d';
         bgApp = '#090b0e';
+        bgCard = 'rgba(255, 255, 255, 0.03)';
+        bgCardHover = 'rgba(255, 255, 255, 0.06)';
         accent = '#e5a93c';
+        textMain = '#f8fafc';
+        textSecondary = '#94a3b8';
+        textMuted = '#64748b';
+        borderColor = 'rgba(255, 255, 255, 0.08)';
+        borderHover = 'rgba(255, 255, 255, 0.16)';
         break;
     }
 
     root.style.setProperty('--bg-main', bgMain);
     root.style.setProperty('--bg-sidebar', bgSidebar);
     root.style.setProperty('--bg-app', bgApp);
+    root.style.setProperty('--bg-card', bgCard);
+    root.style.setProperty('--bg-card-hover', bgCardHover);
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--text-main', textMain);
     root.style.setProperty('--text-secondary', textSecondary);
+    root.style.setProperty('--text-muted', textMuted);
     root.style.setProperty('--border-color', borderColor);
+    root.style.setProperty('--border-hover', borderHover);
 
     // Вычисляемые цвета для акцента
     root.style.setProperty('--accent-glow', this.hexToRgba(accent, 0.35));

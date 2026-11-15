@@ -376,7 +376,11 @@ class BasaltApp {
       await this.openFile(found);
     } else {
       if (!this.adapter.isOpen()) return;
-      const shouldCreate = confirm(t('noteNotFoundPrompt', { name: cleanWithoutExt }));
+      const shouldCreate = await this.showConfirmDialog({
+        title: t('newNote'),
+        message: t('noteNotFoundPrompt', { name: cleanWithoutExt }),
+        confirmText: t('newNote'),
+      });
       if (shouldCreate) {
         const newFile = await this.adapter.createFile(
           cleanWithoutExt,
@@ -651,8 +655,14 @@ class BasaltApp {
         }
       });
 
-      card.querySelector('.btn-delete-forever')?.addEventListener('click', () => {
-        if (confirm(t('confirmPermanentDelete'))) {
+      card.querySelector('.btn-delete-forever')?.addEventListener('click', async () => {
+        const confirmed = await this.showConfirmDialog({
+          title: t('deletePermanently'),
+          message: t('confirmPermanentDelete'),
+          confirmText: t('deletePermanently'),
+          danger: true,
+        });
+        if (confirmed) {
           metadataManager.deletePermanently(item.id);
           this.updateTrashBadge();
           this.openTrashModal();
@@ -1250,7 +1260,11 @@ class BasaltApp {
   }
 
   private async handleCreateWorkspace() {
-    const name = prompt(t('promptWorkspaceName'));
+    const name = await this.showPromptDialog({
+      title: t('newWorkspace'),
+      placeholder: t('promptWorkspaceName'),
+      confirmText: t('newWorkspace'),
+    });
     if (!name || !name.trim()) {
       this.workspaceSelect.value = settingsManager.get().activeWorkspace || '';
       return;
@@ -1631,19 +1645,176 @@ class BasaltApp {
     }
   }
 
+  // ==========================================================================
+  // ДИАЛОГОВЫЕ ОКНА (PROMPT И CONFIRM БЕЗ БРАУЗЕРНЫХ БЛОКИРУЮЩИХ ВСПЛЫВАЮЩИХ ОКОН)
+  // ==========================================================================
+  private showPromptDialog(options: {
+    title: string;
+    description?: string;
+    defaultValue?: string;
+    placeholder?: string;
+    confirmText?: string;
+  }): Promise<string | null> {
+    return new Promise((resolve) => {
+      const backdrop = document.getElementById('prompt-modal-backdrop') as HTMLElement | null;
+      const titleEl = document.getElementById('prompt-modal-title');
+      const descEl = document.getElementById('prompt-modal-desc');
+      const inputEl = document.getElementById('prompt-modal-input') as HTMLInputElement | null;
+      const btnCancel = document.getElementById('prompt-modal-cancel') as HTMLButtonElement | null;
+      const btnOk = document.getElementById('prompt-modal-ok') as HTMLButtonElement | null;
+      const btnClose = document.getElementById('prompt-modal-close') as HTMLButtonElement | null;
+
+      if (!backdrop || !inputEl) {
+        const fallback = prompt(options.description || options.title, options.defaultValue || '');
+        resolve(fallback);
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = options.title;
+      if (descEl) {
+        descEl.textContent = options.description || '';
+        descEl.style.display = options.description ? 'block' : 'none';
+      }
+      if (btnOk) {
+        btnOk.textContent = options.confirmText || t('applySettings') || 'Готово';
+      }
+
+      inputEl.value = options.defaultValue || '';
+      inputEl.placeholder = options.placeholder || '';
+      backdrop.style.display = 'flex';
+
+      setTimeout(() => {
+        inputEl.focus();
+        inputEl.select();
+      }, 50);
+
+      const cleanup = (value: string | null) => {
+        backdrop.style.display = 'none';
+        btnOk?.removeEventListener('click', onOk);
+        btnCancel?.removeEventListener('click', onCancel);
+        btnClose?.removeEventListener('click', onCancel);
+        backdrop.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKey);
+        resolve(value);
+      };
+
+      const onOk = () => {
+        const val = inputEl.value.trim();
+        cleanup(val.length > 0 ? val : null);
+      };
+
+      const onCancel = () => cleanup(null);
+
+      const onBackdrop = (e: MouseEvent) => {
+        if (e.target === backdrop) onCancel();
+      };
+
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onOk();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      };
+
+      btnOk?.addEventListener('click', onOk);
+      btnCancel?.addEventListener('click', onCancel);
+      btnClose?.addEventListener('click', onCancel);
+      backdrop.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
+  private showConfirmDialog(options: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    danger?: boolean;
+  }): Promise<boolean> {
+    return new Promise((resolve) => {
+      const backdrop = document.getElementById('confirm-modal-backdrop') as HTMLElement | null;
+      const titleEl = document.getElementById('confirm-modal-title');
+      const messageEl = document.getElementById('confirm-modal-message');
+      const btnCancel = document.getElementById('confirm-modal-cancel') as HTMLButtonElement | null;
+      const btnOk = document.getElementById('confirm-modal-ok') as HTMLButtonElement | null;
+      const btnClose = document.getElementById('confirm-modal-close') as HTMLButtonElement | null;
+
+      if (!backdrop) {
+        resolve(confirm(options.message));
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = options.title;
+      if (messageEl) messageEl.textContent = options.message;
+      if (btnOk) {
+        btnOk.textContent = options.confirmText || t('applySettings') || 'OK';
+        btnOk.className = options.danger ? 'btn btn-danger' : 'btn btn-primary';
+      }
+
+      backdrop.style.display = 'flex';
+      btnOk?.focus();
+
+      const cleanup = (result: boolean) => {
+        backdrop.style.display = 'none';
+        btnOk?.removeEventListener('click', onOk);
+        btnCancel?.removeEventListener('click', onCancel);
+        btnClose?.removeEventListener('click', onCancel);
+        backdrop.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      };
+
+      const onOk = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+
+      const onBackdrop = (e: MouseEvent) => {
+        if (e.target === backdrop) onCancel();
+      };
+
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onOk();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      };
+
+      btnOk?.addEventListener('click', onOk);
+      btnCancel?.addEventListener('click', onCancel);
+      btnClose?.addEventListener('click', onCancel);
+      backdrop.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
   private async handleCreateNewNote(parentFolder: string = this.selectedFolder) {
-    if (!this.adapter.isOpen()) return;
+    if (!this.adapter.isOpen()) {
+      await this.handleOpenVault();
+      if (!this.adapter.isOpen()) return;
+    }
 
     const folderHint = parentFolder ? ` (${parentFolder})` : '';
-    const name = prompt(`${t('promptNoteName')}${folderHint}:`, t('newNote'));
+    const name = await this.showPromptDialog({
+      title: t('newNote'),
+      description: `${t('promptNoteName')}${folderHint}:`,
+      defaultValue: t('newNote'),
+      placeholder: t('promptNoteName'),
+      confirmText: t('newNote'),
+    });
     if (!name || name.trim().length === 0) return;
 
     try {
       this.setSaveStatus(t('saveStatusSaving'), true);
-      const cleanName = name.trim();
+      const rawName = name.trim();
+      const cleanName = rawName.endsWith('.md') || rawName.endsWith('.txt') ? rawName : `${rawName}.md`;
+      const baseTitle = cleanName.replace(/\.(md|txt)$/, '');
       const newFile = await this.adapter.createFile(
         cleanName,
-        `# ${cleanName}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
+        `# ${baseTitle}\n\n${t('created')}: ${new Date().toLocaleString()}\n\n`,
         parentFolder
       );
 
@@ -1666,10 +1837,19 @@ class BasaltApp {
   }
 
   private async handleCreateNewFolder(parentFolder: string = this.selectedFolder) {
-    if (!this.adapter.isOpen()) return;
+    if (!this.adapter.isOpen()) {
+      await this.handleOpenVault();
+      if (!this.adapter.isOpen()) return;
+    }
 
     const folderHint = parentFolder ? ` (${parentFolder})` : '';
-    const name = prompt(`${t('promptFolderName')}${folderHint}:`, t('newFolder'));
+    const name = await this.showPromptDialog({
+      title: t('newFolder'),
+      description: `${t('promptFolderName')}${folderHint}:`,
+      defaultValue: t('newFolder'),
+      placeholder: t('promptFolderName'),
+      confirmText: t('newFolder'),
+    });
     if (!name || name.trim().length === 0) return;
 
     try {
@@ -1693,7 +1873,13 @@ class BasaltApp {
   }
 
   private async handleRenameFolder(node: TreeNode) {
-    const newName = prompt(t('promptRenameFolder'), node.name);
+    const newName = await this.showPromptDialog({
+      title: t('renameFolder'),
+      description: node.path,
+      defaultValue: node.name,
+      placeholder: t('promptRenameFolder'),
+      confirmText: t('rename'),
+    });
     if (!newName || !newName.trim() || newName.trim() === node.name) return;
 
     try {
@@ -1725,7 +1911,13 @@ class BasaltApp {
 
   private async handleRenameFile(node: TreeNode) {
     const rawBaseName = node.name.replace(/\.md$/, '');
-    const newName = prompt(t('promptRenameNote'), rawBaseName);
+    const newName = await this.showPromptDialog({
+      title: t('renameNote'),
+      description: node.path,
+      defaultValue: rawBaseName,
+      placeholder: t('promptRenameNote'),
+      confirmText: t('rename'),
+    });
     if (!newName || !newName.trim()) return;
 
     const cleanWithExt = newName.trim().endsWith('.md') ? newName.trim() : `${newName.trim()}.md`;
@@ -1753,7 +1945,13 @@ class BasaltApp {
   }
 
   private async handleDeleteFolder(node: TreeNode) {
-    if (!confirm(t('confirmDeleteFolder', { name: node.name }))) {
+    const confirmed = await this.showConfirmDialog({
+      title: t('deleteFolder'),
+      message: t('confirmDeleteFolder', { name: node.name }),
+      confirmText: t('deleteFolder'),
+      danger: true,
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -1829,7 +2027,9 @@ class BasaltApp {
       this.modalSettings?.style.display === 'flex' ||
       this.modalInfo?.style.display === 'flex' ||
       this.modalIconPicker?.style.display === 'flex' ||
-      this.modalSync?.style.display === 'flex'
+      this.modalSync?.style.display === 'flex' ||
+      document.getElementById('prompt-modal-backdrop')?.style.display === 'flex' ||
+      document.getElementById('confirm-modal-backdrop')?.style.display === 'flex'
     );
   }
 

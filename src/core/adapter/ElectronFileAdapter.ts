@@ -100,13 +100,16 @@ export class ElectronFileAdapter implements FileSystemAdapter {
     parentPath: string = ''
   ): Promise<FileEntry> {
     if (!this.vaultPath) throw new Error('Хранилище не открыто.');
-    const relPath = parentPath ? `${parentPath}/${name}` : name;
+    const cleanName = name.trim();
+    const withExt = cleanName.endsWith('.md') || cleanName.endsWith('.txt') ? cleanName : `${cleanName}.md`;
+    const relPath = parentPath ? `${parentPath}/${withExt}` : withExt;
     return await this.desktop.createFile(this.vaultPath, relPath, initialContent);
   }
 
   async createFolder(name: string, parentPath: string = ''): Promise<FileEntry> {
     if (!this.vaultPath) throw new Error('Хранилище не открыто.');
-    const relPath = parentPath ? `${parentPath}/${name}` : name;
+    const cleanName = name.trim().replace(/[\\/]/g, '_');
+    const relPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
     return await this.desktop.createFolder(this.vaultPath, relPath);
   }
 
@@ -122,12 +125,15 @@ export class ElectronFileAdapter implements FileSystemAdapter {
 
   async renameFile(oldPath: string, newName: string): Promise<FileEntry> {
     if (!this.vaultPath) throw new Error('Хранилище не открыто.');
-    return await this.desktop.renameFile(this.vaultPath, oldPath, newName);
+    const cleanName = newName.trim();
+    const withExt = cleanName.endsWith('.md') || cleanName.endsWith('.txt') ? cleanName : `${cleanName}.md`;
+    return await this.desktop.renameFile(this.vaultPath, oldPath, withExt);
   }
 
   async renameFolder(oldPath: string, newName: string): Promise<FileEntry> {
     if (!this.vaultPath) throw new Error('Хранилище не открыто.');
-    return await this.desktop.renameFolder(this.vaultPath, oldPath, newName);
+    const cleanName = newName.trim().replace(/[\\/]/g, '_');
+    return await this.desktop.renameFolder(this.vaultPath, oldPath, cleanName);
   }
 
   async moveEntry(oldPath: string, newParentPath: string): Promise<FileEntry> {
